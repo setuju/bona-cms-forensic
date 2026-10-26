@@ -93,10 +93,12 @@ class AdvancedSecurityChecker extends AbstractChecker {
                 $details = "Name/Value: {$nameValue}";
                 $missing = [];
                 if (!preg_grep('/HttpOnly/i', $flags)) $missing[] = 'HttpOnly';
-                if (!preg_grep('/Secure/i', $flags)) $missing[] = 'Secure';
+                // 'Secure' hanya wajib jika HTTPS (localhost HTTP tidak support)
+                if (!preg_grep('/Secure/i', $flags)) $missing[] = 'Secure (wajib di production HTTPS)';
                 if (!preg_grep('/SameSite/i', $flags)) $missing[] = 'SameSite';
                 
                 if (empty($missing)) $this->addResult('PASS', "Cookie [{$nameValue}] has all flags.");
+                elseif (count($missing) === 1 && str_contains($missing[0], 'Secure')) $this->addResult('INFO', "Cookie [{$nameValue}] missing Secure (OK di localhost, wajib di prod)", ['list' => ["Cookie: {$nameValue}", "Flags: " . implode('; ', $flags)]]);
                 else $this->addResult('WARN', "Cookie [{$nameValue}] missing: " . implode(', ', $missing), ['list' => ["Cookie: {$nameValue}", "Flags: " . implode('; ', $flags)]]);
             }
         } else {

@@ -92,7 +92,7 @@ class DatabaseChecker extends AbstractChecker {
             }
             if (!empty($noPK)) $this->addResult('WARN', count($noPK) . ' tables WITHOUT PRIMARY KEY (rentan UPDATE/DELETE massal):', ['list' => $noPK]);
             else $this->addResult('PASS', 'All tables have PRIMARY KEY.');
-            if (!empty($dangerousCols)) $this->addResult('INFO', count($dangerousCols) . ' string/text columns (potential XSS/SQLi storage):', ['list' => array_slice($dangerousCols, 0, 10)]);
+            if (!empty($dangerousCols)) $this->addResult('INFO', count($dangerousCols) . ' string/text columns (potential XSS/SQLi storage):', ['list' => $dangerousCols]);
         } catch (\Exception $e) { $this->addResult('WARN', 'Schema analysis failed: ' . substr($e->getMessage(), 0, 100)); }
     }
 }

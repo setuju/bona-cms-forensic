@@ -8,6 +8,7 @@ use SatuRumah\Forensic\Core\Config;
 use SatuRumah\Forensic\Checkers\StatsChecker;
 use SatuRumah\Forensic\Checkers\SecurityChecker;
 use SatuRumah\Forensic\Checkers\DependencyChecker;
+use SatuRumah\Forensic\Checkers\ImportDepthChecker;
 use SatuRumah\Forensic\Checkers\OrphanChecker;
 use SatuRumah\Forensic\Checkers\LogChecker;
 use SatuRumah\Forensic\Checkers\SeoChecker;
@@ -42,6 +43,7 @@ $checkers = [
     new MaintenanceChecker($config),
     new DependencyChecker($config),
     new CircularDependencyChecker($config),
+    new ImportDepthChecker($config),
     new OrphanChecker($config),
     new SecurityChecker($config),
     new AdvancedSecurityChecker($config),
@@ -72,9 +74,9 @@ foreach ($checkers as $checker) {
             };
             echo "  {$icon} {$res['message']}\n";
             
-            if (in_array($res['status'], ['FAIL', 'WARN']) && !empty($res['details']['list'])) {
+            if (in_array($res['status'], ['FAIL', 'WARN', 'INFO']) && !empty($res['details']['list'])) {
                 $list = $res['details']['list'];
-                $items = $showFindings ? $list : array_slice($list, 0, 5);
+                $items = $showFindings ? $list : array_slice($list, 0, 10);
                 foreach ($items as $item) {
                     echo "      \033[2m- {$item}\033[0m\n";
                 }

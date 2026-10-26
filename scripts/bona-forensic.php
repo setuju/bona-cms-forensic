@@ -68,6 +68,7 @@ class BonaForensic {
     private bool $mermaid = false;
     private bool $orphansOnly = false;
     private bool $quick = false;
+    private bool $showFindings = false;
     private array $files = [];
     private array $graph = [];
     private array $reverseGraph = [];
@@ -94,8 +95,8 @@ class BonaForensic {
         }
         $this->snapshotFile = $this->rootDir . '/.bona/forensic-snapshot.json';
     }
-    public function setFlags(bool $ci, bool $json, bool $mermaid, bool $orphansOnly, bool $quick): void {
-        $this->ci = $ci; $this->json = $json; $this->mermaid = $mermaid; $this->orphansOnly = $orphansOnly; $this->quick = $quick;
+    public function setFlags(bool $ci, bool $json, bool $mermaid, bool $orphansOnly, bool $quick, bool $showFindings = false): void {
+        $this->ci = $ci; $this->json = $json; $this->mermaid = $mermaid; $this->orphansOnly = $orphansOnly; $this->quick = $quick; $this->showFindings = $showFindings;
     }
     private function scanFiles(array $extensions, array $extraExclude = []): array {
         $exclude = array_merge($this->excludeDirs, $extraExclude);
@@ -264,6 +265,7 @@ class BonaForensic {
 
     private function sectionOrphans(): void {
         $this->printHeader('SECTION 8 · Orphan Detection');
+        if ($this->quick) { $this->info("Quick mode: skipped."); return; }
         $orphans = $this->findOrphans();
         if (empty($orphans)) { $this->addCheck('Orphans', 'None', 'PASS'); return; }
         $this->addCheck('Orphans', count($orphans) . " files", 'WARN'); $this->warnCount++;
@@ -589,6 +591,7 @@ $audit->setFlags(
     json: in_array('--json', $argv, true),
     mermaid: in_array('--mermaid', $argv, true),
     orphansOnly: in_array('--orphans-only', $argv, true),
-    quick: in_array('--quick', $argv, true)
+    quick: in_array('--quick', $argv, true),
+    showFindings: in_array('--show-findings', $argv, true)
 );
 exit($audit->run());

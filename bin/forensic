@@ -68,6 +68,23 @@ $checkers = [
     new ClsChecker($config),
 ];
 
+// Special case: --section=integrity butuh full pipeline (snapshot + run + compare)
+if ($onlySection === 'integrity') {
+    $integrity = new IntegrityChecker($config);
+    $integrity->snapshot();
+    // Jalankan semua checker (silent) - tidak mengubah file, hanya untuk duration realistis
+    foreach ($checkers as $c) { $c->run(); }
+    echo "\033[1;36m▶ Running: Read-Only Integrity Check\033[0m\n";
+    $results = $integrity->run();
+    foreach ($results as $res) {
+        $icon = match($res['status']) { 'PASS' => "\033[0;32m✓\033[0m", 'FAIL' => "\033[0;31m✗\033[0m", 'WARN' => "\033[0;33m⚠\033[0m", default => "\033[0;34mℹ\033[0m" };
+        echo "  {$icon} {$res['message']}\n";
+        foreach (($res['details']['list'] ?? []) as $item) echo "      \033[2m- {$item}\033[0m\n";
+    }
+    echo "\n";
+    exit($results[0]['status'] === 'FAIL' ? 1 : 0);
+}
+
 if ($onlySection !== null) {
     $checkers = array_filter($checkers, fn($c) => stripos($c->getName(), $onlySection) !== false);
     if (empty($checkers)) { echo "\033[0;31mNo section matched '{$onlySection}'\033[0m\n"; exit(1); }

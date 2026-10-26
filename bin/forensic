@@ -48,6 +48,7 @@ use SatuRumah\Forensic\Checkers\IntegrityChecker;
 use SatuRumah\Forensic\Checkers\Php2ShellChecker;
 use SatuRumah\Forensic\Checkers\SemgrepChecker;
 use SatuRumah\Forensic\Checkers\PhpUnitChecker;
+use SatuRumah\Forensic\Checkers\PageSpeedChecker;
 use SatuRumah\Forensic\Checkers\BrokenLinksChecker;
 use SatuRumah\Forensic\Checkers\SmokeTestChecker;
 
@@ -80,6 +81,7 @@ $checkers = [
     new ImportDepthChecker($config),
     new CentralityChecker($config),
     new BrokenLinksChecker($config),
+    new PageSpeedChecker($config),
     new OrphanChecker($config),
     new SecurityChecker($config),
     new AdvancedSecurityChecker($config),

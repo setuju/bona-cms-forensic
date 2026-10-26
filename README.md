@@ -41,7 +41,7 @@
 - [Features](#-features)
 - [Quick Start](#-quick-start)
 - [Requirements](#-requirements)
-- [The 21 Checkers](#-the-18-checkers)
+- [The 22 Checkers](#-the-18-checkers)
 - [CLI Reference](#-cli-reference)
 - [Read-Only Guarantee](#-read-only-guarantee)
 - [CI/CD Integration](#-cicd-integration)

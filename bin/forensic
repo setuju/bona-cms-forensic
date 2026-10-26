@@ -51,6 +51,7 @@ use SatuRumah\Forensic\Checkers\PhpUnitChecker;
 use SatuRumah\Forensic\Checkers\PageSpeedChecker;
 use SatuRumah\Forensic\Checkers\BrokenLinksChecker;
 use SatuRumah\Forensic\Checkers\AssetChecker;
+use SatuRumah\Forensic\Checkers\ReliabilityChecker;
 use SatuRumah\Forensic\Checkers\SmokeTestChecker;
 
 $target = getcwd();
@@ -84,6 +85,7 @@ $checkers = [
     new BrokenLinksChecker($config),
     new PageSpeedChecker($config),
     new AssetChecker($config),
+    new ReliabilityChecker($config),
     new OrphanChecker($config),
     new SecurityChecker($config),
     new AdvancedSecurityChecker($config),

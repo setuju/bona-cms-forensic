@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BrokenLinksChecker** — detects `require`/`include` targets that don't exist on disk (runtime safety)
 - **PageSpeedChecker** — detects blocking scripts, many stylesheets, missing preconnect, oversized inline CSS
 - **AssetChecker** — inventory + size stats; flags files > 500 KB (WARN) and total > 50 MB (FAIL)
+- **ReliabilityChecker** — quality baseline metrics (tests count, phpunit.xml presence, composer deps count)
 
 ## [Unreleased]
 

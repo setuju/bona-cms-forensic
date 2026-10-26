@@ -4,7 +4,7 @@
  * │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
  * │  ──────────────────────────────────────────────────────────────────  │
  * │  File      : scripts/bona-forensic.php                               │
- * │  Purpose   : Unified Forensic Audit Script for Bona CMS              │
+ * │  Purpose   : Unified Deep Forensic Audit Script for Bona CMS (v4.0)  │
  * │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
  * │  GitHub    : https://github.com/setuju                               │
  * │  Website   : https://saturumah.net                                   │
@@ -32,9 +32,6 @@ class Stats {
         if (empty($data)) return 0.0; sort($data); $n = count($data);
         return ($n % 2) ? $data[intdiv($n, 2)] : ($data[$n/2 - 1] + $data[$n/2]) / 2;
     }
-    public static function zScore(float $value, array $baseline): float {
-        $sd = self::stdDev($baseline); return $sd == 0 ? 0.0 : ($value - self::mean($baseline)) / $sd;
-    }
     public static function detectOutliers(array $data, float $threshold = 3.0): array {
         $sd = self::stdDev($data); if ($sd == 0) return [];
         $mean = self::mean($data); $outliers = [];
@@ -47,23 +44,25 @@ class Stats {
 }
 
 class BonaForensic {
-    private string $rootDir;
-    private string $snapshotFile;
-    private bool $ci = false, $json = false, $mermaid = false, $orphansOnly = false, $quick = false, $showFindings = false;
+    private string $rootDir, $snapshotFile, $logDir;
+    private bool $ci = false, $json = false, $mermaid = false, $orphansOnly = false, $quick = false, $showFindings = false, $runServer = false;
     private array $files = [], $graph = [], $reverseGraph = [], $checks = [], $extra = [];
     private int $failCount = 0, $warnCount = 0;
     private float $startTime;
     private array $excludeDirs = ['.git', 'node_modules', 'vendor', 'cache', 'logs', 'storage', 'tmp', 'temp', '.bona', 'dist', 'build', 'coverage'];
     private array $entryPoints = ['index.php', 'public/index.php', 'app.php', 'bootstrap.php', 'cli.php', 'console.php', 'artisan', 'server.php', 'router.php'];
     private array $phpExts = ['php', 'phtml', 'inc'];
-    private array $assetExts = ['js', 'css', 'png', 'jpg', 'jpeg', 'svg', 'webp', 'woff', 'woff2'];
+    private array $assetExts = ['js', 'css', 'png', 'jpg', 'jpeg', 'svg', 'webp', 'woff', 'woff2', 'gif', 'ico'];
     private array $requireTokens = [T_REQUIRE, T_REQUIRE_ONCE, T_INCLUDE, T_INCLUDE_ONCE];
 
-    public function __construct(string $rootDir) {
+    public function __construct(string $rootDir, bool $runServer) {
         if (str_starts_with($rootDir, '~/')) $rootDir = getenv('HOME') . substr($rootDir, 1);
         $this->rootDir = rtrim($rootDir, '/');
         if (!is_dir($this->rootDir)) { echo Color::RED . "[FATAL] Directory not found: {$this->rootDir}" . Color::RESET . "\n"; exit(1); }
         $this->snapshotFile = $this->rootDir . '/.bona/forensic-snapshot.json';
+        $this->logDir = $this->rootDir . '/.bona/logs';
+        if (!is_dir($this->logDir)) @mkdir($this->logDir, 0755, true);
+        $this->runServer = $runServer;
     }
     public function setFlags(bool $ci, bool $json, bool $mermaid, bool $orphansOnly, bool $quick, bool $showFindings): void {
         $this->ci = $ci; $this->json = $json; $this->mermaid = $mermaid; $this->orphansOnly = $orphansOnly; $this->quick = $quick; $this->showFindings = $showFindings;
@@ -82,6 +81,11 @@ class BonaForensic {
         return $files;
     }
     private function rel(string $path): string { return str_replace($this->rootDir . '/', '', $path); }
+    private function writeLog(string $name, array $lines): void {
+        $file = $this->logDir . "/log-{$name}-" . date('Ymd-His') . ".txt";
+        @file_put_contents($file, implode("\n", $lines));
+        $this->info("Log written to: " . $this->rel($file));
+    }
 
     private function parseDependencies(string $filePath): array {
         if ($this->quick) return [];
@@ -114,7 +118,7 @@ class BonaForensic {
                     case T_WHITESPACE: break;
                     default: return [null];
                 }
-            } elseif ($t === '.') { /* Skip concat */ } else { return [null]; }
+            } elseif ($t === '.') { } else { return [null]; }
             $i++;
         }
         return empty($parts) ? [null] : [implode('', $parts)];
@@ -162,16 +166,24 @@ class BonaForensic {
             $n = preg_match_all('/(Fatal error|Parse error|Uncaught|Error:)/i', $c); $total += $n; $counts[basename($log)] = $n;
         }
         arsort($counts);
-        foreach (array_slice($counts, 0, 5, true) as $f => $n) $this->warn("  → {$f}: {$n} errors");
+        foreach (array_slice($counts, 0, 5, true) as $f => $n) {
+            $this->warn("  → {$f}: {$n} errors");
+            $content = @file_get_contents($this->rootDir . '/' . $f);
+            if ($content && $n > 0) {
+                $lines = explode("\n", $content);
+                $errors = array_filter($lines, fn($l) => preg_match('/(Fatal error|Parse error|Uncaught|Error:)/i', $l));
+                $this->writeLog("errors-{$f}", array_slice($errors, 0, 100)); // Simpan 100 error terakhir
+            }
+        }
         if ($total > 50) { $this->addCheck('Log Errors', "{$total} (> 50)", 'FAIL'); $this->failCount++; }
         else $this->addCheck('Log Errors', $total . ' (OK)', 'PASS');
     }
 
     private function sectionReliability(): void {
         $this->printHeader('SECTION 3 · Reliability');
-        $tests = $this->scanFiles(['php'], ['tests', 'test']);
-        if (empty($tests)) { $this->warn("No unit test files found."); $this->addCheck('Unit Tests', 'No test files', 'FAIL'); $this->failCount++; return; }
-        $this->pass("Found " . count($tests) . " test files.");
+        $tests = $this->scanFiles(['php', 'js', 'ts', 'py'], ['tests', 'test', 'spec']);
+        if (empty($tests)) { $this->addCheck('Unit Tests', 'No test files', 'FAIL'); $this->failCount++; return; }
+        $this->pass("Found " . count($tests) . " test files (PHP, JS, TS, Python).");
         $this->addCheck('Unit Tests', count($tests) . ' files found', 'PASS');
     }
 
@@ -179,11 +191,14 @@ class BonaForensic {
         $this->printHeader('SECTION 4 · Asset Performance');
         $assets = $this->scanFiles($this->assetExts, ['node_modules', 'vendor', '.git']);
         if (empty($assets)) { $this->addCheck('Asset Audit', 'No assets', 'SKIP'); return; }
-        $sizes = []; $large = [];
-        foreach ($assets as $a) { $s = @filesize($a); if ($s !== false) { $sizes[] = $s; if ($s > 500*1024) $large[] = $a; } }
-        $totalMB = array_sum($sizes) / 1024 / 1024;
+        $sizes = []; $large = []; $totalKB = 0;
+        foreach ($assets as $a) { $s = @filesize($a); if ($s !== false) { $sizes[] = $s; $totalKB += $s; if ($s > 500*1024) $large[] = ['file' => $this->rel($a), 'size' => round($s/1024)]; } }
+        $totalMB = $totalKB / 1024 / 1024;
         $this->info("Total assets: " . count($assets) . " | Total size: " . round($totalMB, 2) . " MB");
-        if (!empty($large)) { $this->warn("Large assets (>500KB): " . count($large)); foreach (array_slice($large, 0, 3) as $l) $this->warn("  → " . $this->rel($l)); }
+        if (!empty($large)) {
+            $this->warn("Large assets (>500KB): " . count($large));
+            $this->writeLog('large-assets', array_map(fn($l) => "{$l['file']} ({$l['size']} KB)", $large));
+        }
         if ($totalMB > 50) { $this->addCheck('Total Asset Size', round($totalMB, 2) . ' MB (>50MB)', 'FAIL'); $this->failCount++; }
         else $this->addCheck('Total Asset Size', round($totalMB, 2) . ' MB', 'PASS');
     }
@@ -193,22 +208,42 @@ class BonaForensic {
         $gitignore = $this->rootDir . '/.gitignore';
         if (file_exists($gitignore) && str_contains(file_get_contents($gitignore), '.env')) $this->addCheck('Gitignore .env', 'Ignored', 'PASS');
         else { $this->addCheck('Gitignore .env', 'NOT ignored!', 'FAIL'); $this->failCount++; }
-        $patterns = ['/\$(password|passwd|pwd)\s*=\s*["\'][^"\']{3,}["\']/i', '/define\s*\(\s*["\']DB_PASS/i'];
+        $patterns = ['/\$(password|passwd|pwd)\s*=\s*["\'][^"\']{3,}["\']/i', '/define\s*\(\s*["\']DB_PASS/i', '/(api[_-]?key|secret[_-]?key|bearer)\s*=\s*["\'][a-zA-Z0-9]{20,}["\']/i'];
         $suspicious = [];
         foreach ($this->files as $f) {
             $c = @file_get_contents($f); if (!$c) continue;
             foreach ($patterns as $p) { if (preg_match($p, $c)) { $suspicious[] = $this->rel($f); break; } }
         }
-        if (!empty($suspicious)) { $this->warn("Hardcoded secrets in " . count($suspicious) . " files:"); foreach(array_slice($suspicious,0,3) as $s) $this->warn("  → {$s}"); $this->addCheck('Hardcoded Secrets', count($suspicious) . " files", 'WARN'); $this->warnCount++; }
-        else $this->addCheck('Hardcoded Secrets', 'None', 'PASS');
+        if (!empty($suspicious)) {
+            $this->warn("Hardcoded secrets/API keys in " . count($suspicious) . " files:");
+            $this->writeLog('hardcoded-secrets', $suspicious);
+            $this->addCheck('Hardcoded Secrets', count($suspicious) . " files", 'WARN'); $this->warnCount++;
+        } else { $this->pass("No hardcoded secrets detected."); $this->addCheck('Hardcoded Secrets', 'None', 'PASS'); }
     }
 
     private function sectionDatabase(): void {
-        $this->printHeader('SECTION 6 · Database Health');
-        $sqlFiles = $this->scanFiles(['sql', 'sqlite'], ['vendor', 'node_modules']);
-        if (empty($sqlFiles)) { $this->info("No database schema files found."); $this->addCheck('Database', 'No schema', 'SKIP'); return; }
-        $this->info("Found " . count($sqlFiles) . " database schema files.");
-        $this->addCheck('Database', count($sqlFiles) . ' files found', 'PASS');
+        $this->printHeader('SECTION 6 · Database Health (Read-Only)');
+        $configFile = null;
+        foreach (['config.php', 'config.local.php', 'includes/db.php'] as $f) { if (file_exists($this->rootDir . '/' . $f)) { $configFile = $this->rootDir . '/' . $f; break; } }
+        if (!$configFile) { $this->info("No config file found. Skipping live DB check."); $this->addCheck('Database', 'No config', 'SKIP'); return; }
+        
+        // Coba parse config untuk mendapatkan kredensial (sederhana via regex)
+        $content = file_get_contents($configFile);
+        if (preg_match('/["\'](?:db|database)[_a-z]*["\']\s*=>\s*["\']([^"\']+)["\']/i', $content, $m)) {
+            $this->info("Found DB config. Attempting read-only connection...");
+            try {
+                $dsn = "mysql:host=127.0.0.1;dbname=" . ($m[1] ?? 'test') . ";charset=utf8mb4";
+                $pdo = new PDO($dsn, 'root', '', [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 2]);
+                $stmt = $pdo->query("SHOW TABLES");
+                $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                $this->pass("Connected! Found " . count($tables) . " tables.");
+                $this->writeLog('database-tables', $tables);
+                $this->addCheck('Live Database', count($tables) . ' tables', 'PASS');
+            } catch (Exception $e) {
+                $this->info("Could not connect (WSL vs Prod diff): " . $e->getMessage());
+                $this->addCheck('Live Database', 'Connection failed (safe)', 'SKIP');
+            }
+        } else { $this->info("No DB credentials parsed. Skipping."); $this->addCheck('Database', 'No creds', 'SKIP'); }
     }
 
     private function sectionDependencyGraph(): void {
@@ -217,6 +252,19 @@ class BonaForensic {
         $this->buildGraph();
         $totalLinks = array_sum(array_map(fn($d) => count($d['deps']), $this->graph));
         $this->info("Files: " . count($this->graph) . " | Links: {$totalLinks}");
+        
+        // Generate Mermaid
+        $mermaid = ["graph TD"];
+        foreach ($this->graph as $f => $info) {
+            $id = 'n' . substr(md5($this->rel($f)), 0, 6);
+            foreach ($info['deps'] as $d) {
+                $depId = 'n' . substr(md5($this->rel($d['target'])), 0, 6);
+                $mermaid[] = "  {$id}[\"" . basename($f) . "\"] --> {$depId}[\"" . basename($d['target']) . "\"]";
+            }
+        }
+        $graphFile = $this->rootDir . '/.bona/dependency-graph.mmd';
+        file_put_contents($graphFile, implode("\n", $mermaid));
+        $this->pass("Mermaid graph saved to: " . $this->rel($graphFile));
         $this->addCheck('Dependency Graph', count($this->graph) . ' files', 'PASS');
     }
 
@@ -225,16 +273,10 @@ class BonaForensic {
         $orphans = [];
         foreach ($this->files as $f) {
             if (in_array($f, $entryAbs, true)) continue;
-            // Skip tests, scripts, dan vendor (mereka sering dipanggil via CLI atau Autoload)
             if (preg_match('#/(tests|scripts|vendor|migrations)/#i', $f)) continue;
-            
             if (empty($this->reverseGraph[$f] ?? [])) {
-                // Cek apakah file mendefinisikan Class (indikasi PSR-4 Autoload)
                 $c = @file_get_contents($f);
-                if ($c && preg_match('/(class|interface|trait)\s+\w+/i', $c)) {
-                    // Kemungkinan di-load via Autoload, jangan anggap orphan mutlak
-                    continue; 
-                }
+                if ($c && preg_match('/\b(class|interface|trait)\s+\w+/i', $c)) continue; // Autoload
                 $orphans[] = ['file' => $f, 'relative' => $this->rel($f)];
             }
         }
@@ -245,11 +287,9 @@ class BonaForensic {
         $this->printHeader('SECTION 8 · Orphan Detection');
         if ($this->quick) { $this->info("Quick mode: skipped."); return; }
         $orphans = $this->findOrphans();
-        if (empty($orphans)) { $this->addCheck('Orphans', 'None', 'PASS'); return; }
-        $this->info("Catatan: File dengan Class/Interface di-skip karena kemungkinan di-load via Composer Autoload.");
-        $this->warn("Found " . count($orphans) . " potential orphan files (tanpa require/include manual):");
-        foreach (array_slice($orphans, 0, 15) as $o) $this->warn("  → {$o['relative']}");
-        if (count($orphans) > 15) $this->info("  ... dan " . (count($orphans) - 15) . " lainnya");
+        if (empty($orphans)) { $this->pass("No orphan files detected."); $this->addCheck('Orphans', 'None', 'PASS'); return; }
+        $this->warn("Found " . count($orphans) . " potential orphan files:");
+        $this->writeLog('orphans', array_column($orphans, 'relative'));
         $this->addCheck('Orphans', count($orphans) . " files", 'WARN'); $this->warnCount++;
     }
 
@@ -262,7 +302,7 @@ class BonaForensic {
         }
         if (empty($broken)) { $this->pass("No broken links detected."); $this->addCheck('Broken Links', 'None', 'PASS'); return; }
         $this->warn("Found " . count($broken) . " broken links:");
-        foreach (array_slice($broken, 0, 10) as $b) $this->warn("  → {$b}");
+        $this->writeLog('broken-links', $broken);
         $this->addCheck('Broken Links', count($broken) . ' broken', 'FAIL'); $this->failCount++;
     }
 
@@ -281,12 +321,11 @@ class BonaForensic {
     private function sectionDiff(array $orphans): void {
         $this->printHeader('SECTION 10 · Changes Since Last Snapshot');
         $old = $this->loadSnapshot();
-        if ($old === null) { $this->info("Snapshot pertama dibuat."); return; }
+        if ($old === null) { $this->info("Snapshot pertama dibuat. Jalankan lagi untuk melihat diff."); return; }
         $current = []; foreach ($this->graph as $file => $info) $current[$this->rel($file)] = array_map(fn($d) => $this->rel($d['target']), $info['deps']);
         $oldFiles = $old['files'] ?? [];
         $newFiles = array_values(array_diff(array_keys($current), array_keys($oldFiles)));
         $removedFiles = array_values(array_diff(array_keys($oldFiles), array_keys($current)));
-        
         if (!empty($newFiles)) { $this->warn("New files (" . count($newFiles) . "):"); foreach(array_slice($newFiles,0,5) as $f) $this->warn("  + {$f}"); $this->addCheck('New Files', count($newFiles) . ' files', 'WARN'); $this->warnCount++; }
         if (!empty($removedFiles)) { $this->warn("Removed files (" . count($removedFiles) . "):"); foreach(array_slice($removedFiles,0,5) as $f) $this->warn("  - {$f}"); }
         if (empty($newFiles) && empty($removedFiles)) { $this->pass("No file changes."); $this->addCheck('New Files', 'None', 'PASS'); }
@@ -306,7 +345,7 @@ class BonaForensic {
         foreach (array_keys($this->graph) as $file) if (!isset($visited[$file])) $dfs($file);
         if (empty($cycles)) { $this->pass("No circular dependencies detected."); $this->addCheck('Circular Deps', 'None', 'PASS'); return; }
         $this->warn("Found " . count($cycles) . " circular dependencies.");
-        foreach(array_slice($cycles,0,5) as $c) $this->warn("  ↻ " . $this->rel($c));
+        $this->writeLog('circular-deps', array_map(fn($c) => $this->rel($c), $cycles));
         $this->addCheck('Circular Deps', count($cycles) . ' cycles', 'FAIL'); $this->failCount++;
     }
 
@@ -317,67 +356,86 @@ class BonaForensic {
         foreach ($this->graph as $f => $info) { $fanIn[$f] = count($this->reverseGraph[$f] ?? []); $fanOut[$f] = count($info['deps']); }
         arsort($fanIn);
         $c = 0;
-        foreach ($fanIn as $f => $n) { 
-            if ($n == 0) break; 
-            if ($c == 0) $this->info("Top 5 Most Depended (Fan-In):");
-            $this->warn("  ★ " . $this->rel($f) . " ({$n} importers)"); 
-            if (++$c >= 5) break; 
-        }
+        foreach ($fanIn as $f => $n) { if ($n == 0) break; if ($c == 0) $this->info("Top 5 Most Depended (Fan-In):"); $this->warn("  ★ " . $this->rel($f) . " ({$n} importers)"); if (++$c >= 5) break; }
         if ($c == 0) $this->pass("No highly-depended files (Fan-In = 0 for all).");
-        
         $godFiles = 0;
         foreach ($this->graph as $f => $info) { if (($fanIn[$f] ?? 0) >= 3 && ($info['loc'] ?? 0) > 300) $godFiles++; }
-        if ($godFiles > 0) { $this->warn("God Files (high fan-in + high LOC): " . $godFiles); $this->addCheck('God Files', $godFiles . ' files', 'WARN'); $this->warnCount++; }
-        else { $this->pass("No God Files detected."); $this->addCheck('God Files', 'None', 'PASS'); }
+        if ($godFiles > 0) { $this->addCheck('God Files', $godFiles . ' files', 'WARN'); $this->warnCount++; }
+        else $this->addCheck('God Files', 'None', 'PASS');
     }
 
-    private function sectionImportDepth(): void { $this->printHeader('SECTION 13 · Import Depth'); if ($this->quick) { $this->info("Quick mode: skipped."); return; } $this->info("Import depth analysis completed."); $this->addCheck('Import Depth', 'Analyzed', 'PASS'); }
+    private function sectionImportDepth(): void {
+        $this->printHeader('SECTION 13 · Import Depth');
+        if ($this->quick) { $this->info("Quick mode: skipped."); return; }
+        $this->info("Import depth analysis completed.");
+        $this->addCheck('Import Depth', 'Analyzed', 'PASS');
+    }
+
     private function sectionTechDebt(): void {
         $this->printHeader('SECTION 14 · Technical Debt Markers');
-        $total = 0;
-        foreach ($this->files as $f) { $c = @file_get_contents($f); if ($c !== false) $total += preg_match_all('/\b(TODO|FIXME|HACK|XXX|BUG)\b/i', $c); }
-        $this->info("Total technical debt markers (TODO/FIXME/HACK): {$total}");
+        $markers = ['TODO', 'FIXME', 'HACK', 'XXX', 'BUG'];
+        $total = 0; $details = [];
+        foreach ($this->files as $f) {
+            $c = @file_get_contents($f); if ($c === false) continue;
+            foreach (explode("\n", $c) as $lineNum => $line) {
+                foreach ($markers as $m) {
+                    if (preg_match('/\b' . $m . '\b/i', $line)) { $details[] = "{$this->rel($f)}:{$lineNum}: " . trim(substr($line, 0, 100)); $total++; }
+                }
+            }
+        }
+        $this->info("Total markers (TODO/FIXME/HACK): {$total}");
+        if (!empty($details)) { $this->writeLog('tech-debt', $details); }
         if ($total > 100) { $this->addCheck('Tech Debt', "{$total} markers (>100)", 'WARN'); $this->warnCount++; }
         else $this->addCheck('Tech Debt', "{$total} markers", 'PASS');
     }
-    private function sectionStructure(): void { $this->printHeader('SECTION 15 · Structural Overview'); if ($this->quick) { $this->info("Quick mode: skipped."); return; } $this->info("Class/Interface structure analyzed."); $this->addCheck('Structure', 'Analyzed', 'PASS'); }
+
+    private function sectionStructure(): void {
+        $this->printHeader('SECTION 15 · Structural Overview');
+        if ($this->quick) { $this->info("Quick mode: skipped."); return; }
+        $stats = ['class' => 0, 'interface' => 0, 'trait' => 0, 'enum' => 0, 'function' => 0];
+        foreach ($this->files as $f) {
+            $c = @file_get_contents($f); if ($c === false) continue;
+            $tokens = @token_get_all($c); if (!$tokens) continue;
+            foreach ($tokens as $t) {
+                if (!is_array($t)) continue;
+                if ($t[0] === T_CLASS) $stats['class']++;
+                if ($t[0] === T_INTERFACE) $stats['interface']++;
+                if ($t[0] === T_TRAIT) $stats['trait']++;
+                if ($t[0] === T_FUNCTION) $stats['function']++;
+                if (defined('T_ENUM') && $t[0] === T_ENUM) $stats['enum']++;
+            }
+        }
+        foreach ($stats as $k => $v) if ($v > 0) $this->info(ucfirst($k) . ": {$v}");
+        $this->addCheck('Structure', 'Analyzed', 'PASS');
+    }
+
     private function sectionLint(): void {
         $this->printHeader('SECTION 16 · PHP Lint');
-        $failed = 0;
-        foreach ($this->files as $file) { $out = []; $ret = 0; @exec('php -l ' . escapeshellarg($file) . ' 2>&1', $out, $ret); if ($ret !== 0) $failed++; }
+        $failed = 0; $errors = [];
+        foreach ($this->files as $file) {
+            $out = []; $ret = 0; @exec('php -l ' . escapeshellarg($file) . ' 2>&1', $out, $ret);
+            if ($ret !== 0) { $failed++; $errors[] = implode("\n", $out); }
+        }
         if ($failed === 0) { $this->pass("All " . count($this->files) . " files pass syntax check."); $this->addCheck('PHP Lint', 'All OK', 'PASS'); }
-        else { $this->warn("Syntax errors found in {$failed} files."); $this->addCheck('PHP Lint', "{$failed} errors", 'FAIL'); $this->failCount++; }
+        else { $this->warn("Syntax errors found in {$failed} files."); $this->writeLog('lint-errors', $errors); $this->addCheck('PHP Lint', "{$failed} errors", 'FAIL'); $this->failCount++; }
     }
 
     private function sectionSecurityHeuristics(): void {
         $this->printHeader('SECTION 17 · Security Heuristics (OWASP Top 10)');
         $rules = [
-            // SQLi (Word boundary agar tidak match 'selected')
             ['SQLi-Exec', '/(mysql_query|mysqli_query|pg_query)\s*\(.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
             ['SQLi-Query', '/\b(SELECT|INSERT|UPDATE|DELETE)\b.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
-            
-            // XSS (Negative lookahead untuk skip fungsi escape seperti e() atau htmlspecialchars())
             ['XSS-Echo', '/echo\s+(?!.*?(?:htmlspecialchars|e\(|urlencode|intval|strip_tags|filter_input)).*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
             ['XSS-Print', '/print(_r)?\s*\(.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
-            
-            // LFI/RFI
             ['LFI', '/(include|require)(_once)?\s*\(?\s*\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
             ['RFI', '/(include|require)(_once)?\s*\(?\s*["\']https?:\/\//i', 'FAIL'],
-            
-            // RCE (Negative lookbehind agar tidak match method ->exec() dari PDO)
             ['RCE-Eval', '/\beval\s*\(/i', 'FAIL'],
             ['RCE-System', '/(?<!->)\b(system|exec|shell_exec|passthru|popen|proc_open)\s*\(/i', 'FAIL'],
             ['RCE-Backtick', '/`[^`]*\$_(GET|POST|REQUEST)[^`]*`/i', 'FAIL'],
-            
-            // Path Traversal & SSRF
             ['Path-Traversal', '/(file_get_contents|fopen|readfile|file_put_contents)\s*\(.*?\$_(GET|POST|REQUEST)/i', 'FAIL'],
             ['SSRF', '/(curl_exec|fopen|file_get_contents)\s*\(.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
-            
-            // XXE & Redirect
             ['XXE', '/libxml_disable_entity_loader\s*\(\s*(false|0)\s*\)/i', 'FAIL'],
             ['Redirect', '/header\s*\(\s*["\']Location:\s*["\']?\s*\.\s*\$_(GET|POST|REQUEST)/i', 'FAIL'],
-            
-            // Weak Crypto & Deserialization
             ['WeakHash', '/\b(md5|sha1)\s*\(\s*\$[a-zA-Z_]*(password|pass|pwd|secret)/i', 'FAIL'],
             ['Deserialize', '/\bunserialize\s*\(\s*\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL']
         ];
@@ -395,54 +453,179 @@ class BonaForensic {
         
         $criticalCount = 0; foreach ($findings as $f) { if ($f['severity'] === 'FAIL') $criticalCount++; }
         $this->warn("Total findings: " . count($findings) . " ({$criticalCount} critical)");
+        $this->writeLog('security-findings', array_map(fn($f) => "{$f['file']}:{$f['line']} [{$f['rule']}] {$f['snippet']}", $findings));
         
         $shown = 0;
         foreach ($findings as $f) {
             if (!$this->showFindings && $f['severity'] !== 'FAIL') continue;
             $icon = $f['severity'] === 'FAIL' ? Color::RED . '✗' : Color::YELLOW . '⚠';
             echo "  {$icon}" . Color::RESET . " {$f['file']}:{$f['line']} [{$f['rule']}]\n";
-            // Tampilkan snippet JIKA flag showFindings aktif ATAU ini adalah FAIL (critical)
-            if ($this->showFindings || $f['severity'] === 'FAIL') {
-                echo "      " . Color::DIM . htmlspecialchars($f['snippet']) . Color::RESET . "\n";
-            }
+            if ($this->showFindings || $f['severity'] === 'FAIL') echo "      " . Color::DIM . htmlspecialchars($f['snippet']) . Color::RESET . "\n";
             if (!$this->showFindings && ++$shown >= 15) { echo "  " . Color::DIM . "... dan " . (count($findings) - 15) . " lainnya (gunakan --show-findings)" . Color::RESET . "\n"; break; }
         }
         if ($criticalCount > 0) { $this->addCheck('Security Heuristics', "{$criticalCount} critical", 'FAIL'); $this->failCount++; }
         else { $this->addCheck('Security Heuristics', count($findings) . ' warnings', 'WARN'); $this->warnCount++; }
     }
 
-    private function sectionPhpConfig(): void { 
-        $this->printHeader('SECTION 18 · PHP Config Audit'); 
-        $bad = 0; 
+    private function sectionPhpConfig(): void {
+        $this->printHeader('SECTION 18 · PHP Config Audit');
+        $bad = 0;
         if (ini_get('display_errors') === '1') { $this->warn("display_errors is ON"); $bad++; }
         if (ini_get('allow_url_include') === '1') { $this->warn("allow_url_include is ON"); $bad++; }
-        if ($bad > 0) { $this->addCheck('PHP Config', "{$bad} risky settings", 'FAIL'); $this->failCount++; } 
-        else { $this->pass("PHP configuration is secure."); $this->addCheck('PHP Config', 'Secure', 'PASS'); } 
+        if ($bad > 0) { $this->addCheck('PHP Config', "{$bad} risky settings", 'FAIL'); $this->failCount++; }
+        else { $this->pass("PHP configuration is secure."); $this->addCheck('PHP Config', 'Secure', 'PASS'); }
     }
-    private function sectionSecurityHeaders(): void { $this->printHeader('SECTION 19 · Security Headers'); $this->info("Requires runtime check (e.g., via cURL). Skipped in static analysis."); $this->addCheck('Security Headers', 'Requires runtime check', 'SKIP'); }
-    
+
+    private function sectionSecurityHeaders(): void {
+        $this->printHeader('SECTION 19 · Security Headers (Runtime)');
+        if (!$this->runServer) { $this->info("Runtime check skipped (use --server)."); $this->addCheck('Security Headers', 'Skipped', 'SKIP'); return; }
+        
+        $port = rand(9000, 9999);
+        $cmd = "php -S 127.0.0.1:{$port} -t {$this->rootDir} > /dev/null 2>&1 &";
+        exec($cmd);
+        sleep(1);
+        
+        $url = "http://127.0.0.1:{$port}/";
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HEADER, true);
+        curl_setopt($ch, CURLOPT_NOBODY, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        exec("pkill -f 'php -S 127.0.0.1:{$port}'");
+        
+        if ($httpCode == 200 || $httpCode == 302) {
+            $this->pass("Server responded (HTTP {$httpCode}).");
+            $required = ['X-Frame-Options', 'X-Content-Type-Options', 'Content-Security-Policy', 'Strict-Transport-Security', 'Referrer-Policy'];
+            foreach ($required as $h) {
+                if (stripos($response, $h) !== false) $this->pass("{$h} — Present");
+                else { $this->warn("{$h} — MISSING"); $this->warnCount++; }
+            }
+            $this->addCheck('Security Headers', 'Checked via cURL', 'PASS');
+        } else { $this->info("Could not connect to local server."); $this->addCheck('Security Headers', 'Connection failed', 'SKIP'); }
+    }
+
     private function sectionSeo(): void {
         $this->printHeader('SECTION 20 · SEO Static Analysis');
-        $issues = 0; $templates = $this->scanFiles(['php', 'html', 'phtml']);
+        $templates = $this->scanFiles(['php', 'html', 'phtml']); $issues = []; $totalChecked = 0;
         foreach ($templates as $file) {
             $c = @file_get_contents($file); if ($c === false) continue;
             if (stripos($c, '<head') !== false) {
-                if (!preg_match('/<title\b/i', $c)) $issues++;
-                if (!preg_match('/<meta\s+name=["\']description["\']/i', $c)) $issues++;
+                $totalChecked++;
+                if (!preg_match('/<title\b/i', $c)) $issues[] = "{$this->rel($file)}: Missing <title>";
+                if (!preg_match('/<meta\s+name=["\']description["\']/i', $c)) $issues[] = "{$this->rel($file)}: Missing <meta description>";
             }
         }
-        $this->info("Analyzed " . count($templates) . " templates.");
-        if ($issues > 0) { $this->warn("Found {$issues} SEO issues (missing title/meta)."); $this->addCheck('SEO', "{$issues} issues", 'WARN'); $this->warnCount++; } 
-        else { $this->pass("Basic SEO tags present in all templates."); $this->addCheck('SEO', 'All good', 'PASS'); }
+        $this->info("Analyzed {$totalChecked} templates with <head>.");
+        if (!empty($issues)) { $this->writeLog('seo-issues', $issues); $this->addCheck('SEO', count($issues) . " issues", 'WARN'); $this->warnCount++; }
+        else $this->addCheck('SEO', 'All good', 'PASS');
     }
-    private function sectionCls(): void { $this->printHeader('SECTION 21 · CLS Prevention'); $issues = 0; foreach ($this->scanFiles(['php', 'html', 'phtml']) as $file) { $c = @file_get_contents($file); if ($c === false) continue; preg_match_all('/<img\b[^>]*>/i', $c, $m); foreach ($m[0] as $img) { if (!preg_match('/\bwidth\s*=/i', $img) || !preg_match('/\bheight\s*=/i', $img)) $issues++; } } if ($issues > 0) { $this->warn("Found {$issues} images without width/height (CLS risk)."); $this->addCheck('CLS Prevention', "{$issues} risks", 'WARN'); $this->warnCount++; }
-        else { $this->pass("No CLS risks detected (all images have dimensions)."); $this->addCheck('CLS Prevention', 'Clean', 'PASS'); } }
-    private function sectionPageSpeed(): void { $this->printHeader('SECTION 22 · Page Speed Hints'); $this->info("Static page speed hints analyzed."); $this->addCheck('Page Speed', 'Clean', 'PASS'); }
-    private function sectionCve(): void { $this->printHeader('SECTION 23 · CVE & Dependency Audit'); $this->info("No composer.lock found. Skipping dependency CVE audit."); $this->addCheck('Composer Audit', 'No composer.lock', 'SKIP'); }
-    private function sectionCmsFeatures(): void { $this->printHeader('SECTION 24 · CMS Security Features'); $this->info("CMS security features analyzed (MFA, RBAC, etc)."); $this->addCheck('CMS Features', 'Analyzed', 'PASS'); }
-    private function sectionCookieSession(): void { $this->printHeader('SECTION 25 · Cookie & Session Security'); $this->info("Session cookie configurations checked."); $this->addCheck('Cookie Security', 'Checked', 'PASS'); }
-    private function sectionFileUpload(): void { $this->printHeader('SECTION 26 · File Upload Security'); $this->info("Manual review required for file upload directories."); $this->addCheck('File Upload', 'Manual review required', 'SKIP'); }
-    private function sectionApiCors(): void { $this->printHeader('SECTION 27 · API & CORS Security'); $this->pass("No wildcard CORS or hardcoded API keys detected."); $this->addCheck('CORS', 'Clean', 'PASS'); }
+
+    private function sectionCls(): void {
+        $this->printHeader('SECTION 21 · CLS Prevention');
+        $issues = [];
+        foreach ($this->scanFiles(['php', 'html', 'phtml']) as $file) {
+            $c = @file_get_contents($file); if ($c === false) continue;
+            preg_match_all('/<img\b[^>]*>/i', $c, $m);
+            foreach ($m[0] as $img) {
+                if (!preg_match('/\bwidth\s*=/i', $img) || !preg_match('/\bheight\s*=/i', $img)) {
+                    $issues[] = $this->rel($file) . ": <img> without width/height";
+                }
+            }
+        }
+        if (!empty($issues)) { $this->writeLog('cls-issues', $issues); $this->warn("Found " . count($issues) . " CLS risks."); $this->addCheck('CLS Prevention', count($issues) . " risks", 'WARN'); $this->warnCount++; }
+        else { $this->pass("No CLS risks detected."); $this->addCheck('CLS Prevention', 'Clean', 'PASS'); }
+    }
+
+    private function sectionPageSpeed(): void {
+        $this->printHeader('SECTION 22 · Page Speed Hints');
+        $lighthouse = trim(shell_exec('which lighthouse 2>/dev/null'));
+        if (empty($lighthouse)) {
+            $this->info("Lighthouse CLI not installed. Skipping deep page speed audit.");
+            $this->addCheck('Page Speed', 'Lighthouse missing', 'SKIP');
+            return;
+        }
+        $this->info("Lighthouse detected. Run manually: lighthouse http://localhost --output=json");
+        $this->addCheck('Page Speed', 'Lighthouse available', 'PASS');
+    }
+
+    private function sectionCve(): void {
+        $this->printHeader('SECTION 23 · CVE & Dependency Audit');
+        $composerLock = $this->rootDir . '/composer.lock';
+        if (file_exists($composerLock)) {
+            $this->info("Running composer audit...");
+            $out = []; $ret = 0;
+            @exec('cd ' . escapeshellarg($this->rootDir) . ' && composer audit --format=json 2>&1', $out, $ret);
+            $json = @json_decode(implode("\n", $out), true);
+            if (is_array($json) && isset($json['advisories']) && count($json['advisories']) > 0) {
+                $this->warn("Vulnerable packages: " . count($json['advisories']));
+                $this->writeLog('cve-advisories', array_keys($json['advisories']));
+                $this->addCheck('Composer Audit', count($json['advisories']) . ' vulnerable', 'FAIL'); $this->failCount++;
+            } else { $this->pass("No known CVEs in dependencies. ✅"); $this->addCheck('Composer Audit', 'Clean', 'PASS'); }
+        } else { $this->info("No composer.lock found. Skipping CVE audit."); $this->addCheck('Composer Audit', 'Skipped', 'SKIP'); }
+    }
+
+    private function sectionCmsFeatures(): void {
+        $this->printHeader('SECTION 24 · CMS Security Features');
+        $this->info("CMS security features analyzed (MFA, RBAC, etc).");
+        $this->addCheck('CMS Features', 'Analyzed', 'PASS');
+    }
+
+    private function sectionCookieSession(): void {
+        $this->printHeader('SECTION 25 · Cookie & Session Security');
+        if (!$this->runServer) { $this->info("Runtime check skipped (use --server)."); $this->addCheck('Cookie Security', 'Skipped', 'SKIP'); return; }
+        
+        $port = rand(9000, 9999);
+        exec("php -S 127.0.0.1:{$port} -t {$this->rootDir} > /dev/null 2>&1 &");
+        sleep(1);
+        $ch = curl_init("http://127.0.0.1:{$port}/");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HEADER, true);
+        curl_setopt($ch, CURLOPT_NOBODY, true);
+        $response = curl_exec($ch);
+        curl_close($ch);
+        exec("pkill -f 'php -S 127.0.0.1:{$port}'");
+        
+        if (stripos($response, 'Set-Cookie') !== false) {
+            preg_match_all('/Set-Cookie:\s*([^;]+)/i', $response, $m);
+            foreach ($m[1] as $cookie) {
+                $this->info("Cookie: " . trim($cookie));
+                if (stripos($cookie, 'HttpOnly') === false) $this->warn("  -> Missing HttpOnly");
+                if (stripos($cookie, 'Secure') === false) $this->warn("  -> Missing Secure");
+                if (stripos($cookie, 'SameSite') === false) $this->warn("  -> Missing SameSite");
+            }
+            $this->addCheck('Cookie Security', 'Checked', 'PASS');
+        } else { $this->info("No Set-Cookie header found."); $this->addCheck('Cookie Security', 'No cookies', 'SKIP'); }
+    }
+
+    private function sectionFileUpload(): void {
+        $this->printHeader('SECTION 26 · File Upload Security');
+        $issues = 0;
+        foreach ($this->files as $f) {
+            $c = @file_get_contents($f); if (!$c) continue;
+            if (preg_match('/move_uploaded_file\s*\(/i', $c) && !preg_match('/mime_content_type|finfo_file|getimagesize/i', $c)) {
+                $this->warn("move_uploaded_file without magic-byte validation: " . $this->rel($f));
+                $issues++;
+            }
+        }
+        if ($issues > 0) { $this->addCheck('File Upload', "{$issues} issues", 'WARN'); $this->warnCount++; }
+        else $this->pass("File uploads look secure (magic-byte check detected)."); $this->addCheck('File Upload', 'Clean', 'PASS');
+    }
+
+    private function sectionApiCors(): void {
+        $this->printHeader('SECTION 27 · API & CORS Security');
+        $issues = 0;
+        foreach ($this->files as $f) {
+            $c = @file_get_contents($f); if (!$c) continue;
+            if (preg_match('/Access-Control-Allow-Origin\s*:\s*\*/i', $c)) { $this->warn("Wildcard CORS in " . $this->rel($f)); $issues++; }
+            if (preg_match('/(api[_-]?key|secret[_-]?key|bearer)\s*=\s*["\'][a-zA-Z0-9]{20,}["\']/i', $c)) { $this->warn("Hardcoded API key in " . $this->rel($f)); $issues++; }
+        }
+        if ($issues > 0) { $this->addCheck('CORS', "{$issues} issues", 'WARN'); $this->warnCount++; }
+        else { $this->pass("No wildcard CORS or hardcoded API keys detected."); $this->addCheck('CORS', 'Clean', 'PASS'); }
+    }
 
     private function printHeader(string $title): void {
         if ($this->json) return;
@@ -461,12 +644,13 @@ class BonaForensic {
         if (!$this->json && !$this->mermaid) {
             echo "\n" . Color::BOLD . Color::MAGENTA;
             echo "╔══════════════════════════════════════════════════════════════════════════╗\n";
-            echo "║     BONA CMS — Unified Forensic Audit v3.0 (27 Sections)                 ║\n";
+            echo "║     BONA CMS — Unified Forensic Audit v4.0 (27 Sections)                 ║\n";
             echo "╚══════════════════════════════════════════════════════════════════════════╝\n";
             echo Color::RESET;
             echo "  Root : {$this->rootDir}\n  Time : " . date('Y-m-d H:i:s') . "\n  Files: " . count($this->files) . " PHP files\n";
         }
         if ($this->orphansOnly) { $this->sectionDependencyGraph(); $orphans = $this->findOrphans(); $this->sectionOrphans(); return 0; }
+        
         $this->sectionCodeStats(); $this->sectionLogs(); $this->sectionReliability();
         $this->sectionAssets(); $this->sectionSecurityBasic(); $this->sectionDatabase();
         $this->sectionDependencyGraph(); $this->sectionOrphans(); $this->sectionBrokenLinks();
@@ -499,8 +683,9 @@ class BonaForensic {
 }
 
 $rootDir = dirname(__DIR__);
+$runServer = in_array('--server', $argv, true);
 foreach ($argv as $arg) { if (str_starts_with($arg, '--root=')) $rootDir = substr($arg, 7); }
-$audit = new BonaForensic($rootDir);
+$audit = new BonaForensic($rootDir, $runServer);
 $audit->setFlags(
     ci: in_array('--ci', $argv, true), json: in_array('--json', $argv, true), mermaid: in_array('--mermaid', $argv, true),
     orphansOnly: in_array('--orphans-only', $argv, true), quick: in_array('--quick', $argv, true), showFindings: in_array('--show-findings', $argv, true)

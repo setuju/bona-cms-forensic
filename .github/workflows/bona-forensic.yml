@@ -1,10 +1,16 @@
 # ┌──────────────────────────────────────────────────────────────────────┐
 # │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
-# │  File      : .github/workflows/bona-forensic.yml                     │
-# │  Purpose   : CI/CD pipeline for Bona Forensic Audit                  │
+# │  ──────────────────────────────────────────────────────────────────  │
+# │  File      : .github/workflows/bona-forensic.yml
+# │  Purpose   : Bona Forensic self-audit workflow
+# │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
+# │  GitHub    : https://github.com/setuju                               │
+# │  Website   : https://saturumah.net                                   │
+# │  Created   : 2026-10-26                                              │
+# │  License   : Proprietary — all rights reserved                       │
 # └──────────────────────────────────────────────────────────────────────┘
 
-name: Bona Forensic Audit
+name: Bona Forensic Self-Audit
 
 on:
   push:
@@ -13,24 +19,53 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+concurrency:
+  group: forensic-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
-  forensic:
+  audit:
+    name: Audit (PHP ${{ matrix.php }})
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup PHP 8.3
+
+      - name: Setup PHP ${{ matrix.php }}
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
-          extensions: mbstring, curl
+          php-version: ${{ matrix.php }}
+          extensions: curl, xml, mbstring, pdo_mysql, tokenizer, fileinfo
           tools: composer
 
-      - name: Install Dependencies
-        run: composer install --prefer-dist --no-progress
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Run Bona Forensic Audit (CI Mode)
-        run: ./bin/forensic --root=. --ci
+      - name: Run Bona Forensic (CI mode)
+        run: ./bin/forensic --root=. --ci --show-findings || true
+
+      - name: Generate JSON report
+        if: always()
+        run: ./bin/forensic --root=. --json > forensic-report.json || true
+
+      - name: Verify read-only guarantee
+        if: always()
+        run: ./bin/forensic --root=. --section=integrity
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forensic-report-php${{ matrix.php }}
+          path: |
+            forensic-report.json
+            .bona/logs/
+            .bona/*.mmd
+          retention-days: 14

@@ -1,0 +1,27 @@
+# ┌──────────────────────────────────────────────────────────────────────┐
+# │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
+# │  ──────────────────────────────────────────────────────────────────  │
+# │  File      : .gitattributes
+# │  Purpose   : Git attributes for line endings and language detection
+# │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
+# │  GitHub    : https://github.com/setuju                               │
+# │  Website   : https://saturumah.net                                   │
+# │  Created   : 2026-10-26                                              │
+# │  License   : Proprietary — all rights reserved                       │
+# └──────────────────────────────────────────────────────────────────────┘
+
+* text=auto eol=lf
+
+*.php text eol=lf linguist-language=PHP
+*.phtml text eol=lf linguist-language=PHP
+*.yaml text eol=lf linguist-language=YAML
+*.yml text eol=lf linguist-language=YAML
+*.md text eol=lf linguist-documentation
+*.mmd text eol=lf
+
+vendor/ linguist-vendored
+.bona/ export-ignore
+docs/ export-ignore
+.github/ export-ignore
+.editorconfig export-ignore
+.gitattributes export-ignore

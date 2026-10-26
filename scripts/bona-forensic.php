@@ -83,7 +83,15 @@ class BonaForensic {
     private array $requireTokens = [T_REQUIRE, T_REQUIRE_ONCE, T_INCLUDE, T_INCLUDE_ONCE];
 
     public function __construct(string $rootDir) {
+        // Normalisasi tilde (~) ke home directory
+        if (str_starts_with($rootDir, '~/')) {
+            $rootDir = getenv('HOME') . substr($rootDir, 1);
+        }
         $this->rootDir = rtrim($rootDir, '/');
+        if (!is_dir($this->rootDir)) {
+            echo "\033[0;31m[FATAL] Directory not found: {$this->rootDir}\033[0m\n";
+            exit(1);
+        }
         $this->snapshotFile = $this->rootDir . '/.bona/forensic-snapshot.json';
     }
     public function setFlags(bool $ci, bool $json, bool $mermaid, bool $orphansOnly, bool $quick): void {
@@ -126,19 +134,33 @@ class BonaForensic {
         $i = $start + 1; $parts = [];
         while ($i < $n && $tokens[$i] === '(') $i++;
         while ($i < $n) {
-            $t = $tokens[$i]; if ($t === ';' || $t === ')') break;
+            $t = $tokens[$i];
+            if ($t === ';' || $t === ')') break;
+            
             if (is_array($t)) {
                 switch ($t[0]) {
-                    case T_CONSTANT_ENCAPSED_STRING: $parts[] = substr($t[1], 1, -1); break;
-                    case T_DIR: $parts[] = '__DIR__'; break;
-                    case T_FILE: $parts[] = '__FILE__'; break;
-                    case T_STRING: if ($t[1] === 'dirname') $parts[] = 'dirname'; else return [null]; break;
-                    case T_WHITESPACE: break;
-                    default: return [null];
+                    case T_CONSTANT_ENCAPSED_STRING: 
+                        $parts[] = substr($t[1], 1, -1); 
+                        break;
+                    case T_DIR: 
+                        $parts[] = '__DIR__'; 
+                        break;
+                    case T_FILE: 
+                        $parts[] = '__FILE__'; 
+                        break;
+                    case T_STRING: 
+                        if ($t[1] === 'dirname') $parts[] = 'dirname'; 
+                        else return [null]; 
+                        break;
+                    case T_WHITESPACE: 
+                        break;
+                    default: 
+                        return [null];
                 }
-            }
             } elseif ($t === '.') {
-                // Skip concatenation operator
+                // Skip concatenation operator (PHP 8 compatible)
+            } else {
+                return [null];
             }
             $i++;
         }

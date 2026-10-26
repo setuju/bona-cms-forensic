@@ -19,16 +19,9 @@ class Config {
         }
         
         $this->targetDir = rtrim($real, '/');
-        // Menggunakan dirname(__DIR__, 2) untuk memastikan toolDir selalu mengarah ke root bona-cms-forensic
-        $this->toolDir = rtrim(realpath(dirname(__DIR__, 2)), '/');
+        // Paksa toolDir menggunakan path absolut dari file ini
+        $this->toolDir = dirname(__DIR__, 2);
         $this->showFindings = $showFindings;
-        
-        // Proteksi: Pastikan toolDir TIDAK SAMA dengan targetDir
-        if ($this->toolDir === $this->targetDir) {
-            echo "\033[0;31m[FATAL] Error: Tool directory and Target directory are the same!\033[0m\n";
-            echo "\033[0;31m        Do not run the tool inside itself without specifying a different target.\033[0m\n";
-            exit(1);
-        }
     }
 
     public function getTargetDir(): string { return $this->targetDir; }

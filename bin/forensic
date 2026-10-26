@@ -16,19 +16,23 @@ use SatuRumah\Forensic\Checkers\MaintenanceChecker;
 use SatuRumah\Forensic\Checkers\ConfigChecker;
 use SatuRumah\Forensic\Checkers\AdvancedSecurityChecker;
 use SatuRumah\Forensic\Checkers\CircularDependencyChecker;
+use SatuRumah\Forensic\Checkers\SnapshotChecker;
 
 $target = getcwd();
 $showFindings = in_array('--show-findings', $argv, true);
+$jsonMode = in_array('--json', $argv, true);
 foreach ($argv as $arg) {
     if (str_starts_with($arg, '--root=')) $target = substr($arg, 7);
 }
 
 $config = new Config($target, $showFindings);
 
-echo "\n\033[1;35m╔══════════════════════════════════════════════════════════════════════════╗\n";
-echo "║     BONA FORENSIC — Enterprise Audit (Modular Architecture)              ║\n";
-echo "╚══════════════════════════════════════════════════════════════════════════╝\033[0m\n";
-echo "  Target : {$target}\n\n";
+if (!$jsonMode) {
+    echo "\n\033[1;35m╔══════════════════════════════════════════════════════════════════════════╗\n";
+    echo "║     BONA FORENSIC — Enterprise Audit (Modular Architecture)              ║\n";
+    echo "╚══════════════════════════════════════════════════════════════════════════╝\033[0m\n";
+    echo "  Target : {$target}\n\n";
+}
 
 $checkers = [
     new StatsChecker($config),
@@ -44,34 +48,73 @@ $checkers = [
     new ClsChecker($config),
 ];
 
+$allResults = [];
 $totalFails = 0;
+$totalWarns = 0;
 
 foreach ($checkers as $checker) {
-    echo "\033[1;36m▶ Running: " . $checker->getName() . "\033[0m\n";
     $results = $checker->run();
+    $allResults[$checker->getName()] = $results;
     
-    foreach ($results as $res) {
-        $icon = match($res['status']) {
-            'PASS' => "\033[0;32m✓\033[0m",
-            'FAIL' => "\033[0;31m✗\033[0m",
-            'WARN' => "\033[0;33m⚠\033[0m",
-            'SKIP' => "\033[0;90m○\033[0m",
-            default => "\033[0;34mℹ\033[0m"
-        };
-        
-        echo "  {$icon} {$res['message']}\n";
-        
-        if ($res['status'] === 'FAIL' || $res['status'] === 'WARN') {
-            if ($res['status'] === 'FAIL') $totalFails++;
-            if (!empty($res['details']['list']) && ($showFindings || $res['status'] === 'FAIL')) {
-                foreach (array_slice($res['details']['list'], 0, 5) as $item) {
-                    echo "      \033[2m- {$item}\033[0m\n";
+    if (!$jsonMode) {
+        echo "\033[1;36m▶ Running: " . $checker->getName() . "\033[0m\n";
+        foreach ($results as $res) {
+            $icon = match($res['status']) {
+                'PASS' => "\033[0;32m✓\033[0m",
+                'FAIL' => "\033[0;31m✗\033[0m",
+                'WARN' => "\033[0;33m⚠\033[0m",
+                'SKIP' => "\033[0;90m○\033[0m",
+                default => "\033[0;34mℹ\033[0m"
+            };
+            echo "  {$icon} {$res['message']}\n";
+            
+            if ($res['status'] === 'FAIL' || $res['status'] === 'WARN') {
+                if (!empty($res['details']['list']) && ($showFindings || $res['status'] === 'FAIL')) {
+                    foreach (array_slice($res['details']['list'], 0, 5) as $item) {
+                        echo "      \033[2m- {$item}\033[0m\n";
+                    }
                 }
-                if (count($res['details']['list']) > 5) echo "      \033[2m... dan " . (count($res['details']['list']) - 5) . " lainnya\033[0m\n";
             }
         }
+        echo "\n";
+    }
+    
+    // Hitung total untuk summary & snapshot
+    foreach ($results as $res) {
+        if ($res['status'] === 'FAIL') $totalFails++;
+        if ($res['status'] === 'WARN') $totalWarns++;
+    }
+}
+
+// Jalankan Snapshot Checker setelah semua checker selesai
+$snapshotChecker = new SnapshotChecker($config, $allResults);
+$snapshotResults = $snapshotChecker->run();
+$allResults['Snapshot & Diff'] = $snapshotResults;
+
+if (!$jsonMode) {
+    echo "\033[1;36m▶ Running: Snapshot & Diff\033[0m\n";
+    foreach ($snapshotResults as $res) {
+        $icon = match($res['status']) { 'PASS' => "\033[0;32m✓\033[0m", 'WARN' => "\033[0;33m⚠\033[0m", 'INFO' => "\033[0;34mℹ\033[0m", default => "\033[0;90m○\033[0m" };
+        echo "  {$icon} {$res['message']}\n";
     }
     echo "\n";
+}
+
+// Output JSON atau Console
+if ($jsonMode) {
+    $output = [
+        'meta' => ['target' => $target, 'timestamp' => date('c')],
+        'summary' => ['fails' => $totalFails, 'warns' => $totalWarns, 'status' => $totalFails > 0 ? 'FAIL' : ($totalWarns > 0 ? 'WARN' : 'PASS')],
+        'results' => $allResults
+    ];
+    echo json_encode($output, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+} else {
+    echo "\033[1;35m══════════════════════════════════════════════════════════════════════════\033[0m\n";
+    echo "\033[1;35m  SUMMARY\033[0m\n";
+    echo "  Total FAILs : \033[0;31m{$totalFails}\033[0m\n";
+    echo "  Total WARNs : \033[0;33m{$totalWarns}\033[0m\n";
+    echo "  Status      : " . ($totalFails > 0 ? "\033[0;31mFAIL\033[0m" : ($totalWarns > 0 ? "\033[0;33mWARN\033[0m" : "\033[0;32mPASS\033[0m")) . "\n";
+    echo "\033[1;35m══════════════════════════════════════════════════════════════════════════\033[0m\n\n";
 }
 
 exit($totalFails > 0 ? 1 : 0);

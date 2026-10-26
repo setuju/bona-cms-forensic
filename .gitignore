@@ -24,3 +24,8 @@ Thumbs.db
 
 # Node (jika ada frontend)
 node_modules/
+
+# Generated Report
+forensic-report.json
+
+vendor/

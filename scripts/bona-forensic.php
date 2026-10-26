@@ -345,11 +345,27 @@ class BonaForensic {
     private function sectionSecurityHeuristics(): void {
         $this->printHeader('SECTION 17 · Security Heuristics (OWASP Top 10)');
         $rules = [
+            // SQLi
             ['SQLi-Exec', '/(mysql_query|mysqli_query|pg_query)\s*\(.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
             ['SQLi-Query', '/(SELECT|INSERT|UPDATE|DELETE).*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
-            ['XSS', '/echo\s+.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
-            ['LFI/RFI', '/(include|require)(_once)?\s*\(?\s*\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
-            ['RCE', '/\beval\s*\(/i', 'FAIL'],
+            // XSS
+            ['XSS-Echo', '/echo\s+.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
+            ['XSS-Print', '/print(_r)?\s*\(.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
+            // LFI / RFI
+            ['LFI', '/(include|require)(_once)?\s*\(?\s*\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
+            ['RFI', '/(include|require)(_once)?\s*\(?\s*["\']https?:\/\//i', 'FAIL'],
+            // RCE
+            ['RCE-Eval', '/\beval\s*\(/i', 'FAIL'],
+            ['RCE-System', '/\b(system|exec|shell_exec|passthru|popen|proc_open)\s*\(/i', 'FAIL'],
+            ['RCE-Backtick', '/`[^`]*\$_(GET|POST|REQUEST)[^`]*`/i', 'FAIL'],
+            // Path Traversal & SSRF
+            ['Path-Traversal', '/(file_get_contents|fopen|readfile|file_put_contents)\s*\(.*?\$_(GET|POST|REQUEST)/i', 'FAIL'],
+            ['SSRF', '/(curl_exec|fopen|file_get_contents)\s*\(.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
+            // XXE
+            ['XXE', '/libxml_disable_entity_loader\s*\(\s*(false|0)\s*\)/i', 'FAIL'],
+            // Open Redirect
+            ['Redirect', '/header\s*\(\s*["\']Location:\s*["\']?\s*\.\s*\$_(GET|POST|REQUEST)/i', 'FAIL'],
+            // Weak Crypto & Deserialization
             ['WeakHash', '/\b(md5|sha1)\s*\(\s*\$[a-zA-Z_]*(password|pass|pwd|secret)/i', 'FAIL'],
             ['Deserialize', '/\bunserialize\s*\(\s*\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL']
         ];

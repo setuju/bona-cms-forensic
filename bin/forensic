@@ -17,6 +17,7 @@ use SatuRumah\Forensic\Checkers\ConfigChecker;
 use SatuRumah\Forensic\Checkers\AdvancedSecurityChecker;
 use SatuRumah\Forensic\Checkers\CircularDependencyChecker;
 use SatuRumah\Forensic\Checkers\SnapshotChecker;
+use SatuRumah\Forensic\Checkers\DatabaseChecker;
 
 $target = getcwd();
 $showFindings = in_array('--show-findings', $argv, true);
@@ -45,6 +46,7 @@ $checkers = [
     new SecurityChecker($config),
     new AdvancedSecurityChecker($config),
     new ConfigChecker($config),
+    new DatabaseChecker($config),
     new LogChecker($config),
     new SeoChecker($config),
     new ClsChecker($config),

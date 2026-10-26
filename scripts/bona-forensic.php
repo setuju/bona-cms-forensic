@@ -84,7 +84,7 @@ class BonaForensic {
     private function writeLog(string $name, array $lines): void {
         $file = $this->logDir . "/log-{$name}-" . date('Ymd-His') . ".txt";
         @file_put_contents($file, implode("\n", $lines));
-        $this->info("Log written to: " . $this->rel($file));
+        $this->info("Log written to: " . $file);
     }
 
     private function parseDependencies(string $filePath): array {
@@ -172,7 +172,12 @@ class BonaForensic {
             if ($content && $n > 0) {
                 $lines = explode("\n", $content);
                 $errors = array_filter($lines, fn($l) => preg_match('/(Fatal error|Parse error|Uncaught|Error:)/i', $l));
-                $this->writeLog("errors-{$f}", array_slice($errors, 0, 100)); // Simpan 100 error terakhir
+                $this->writeLog("errors-{$f}", array_slice($errors, 0, 100));
+                // Tampilkan 3 error terakhir secara langsung
+                $this->info("    Contoh error terakhir:");
+                foreach(array_slice(array_values($errors), -3) as $err) {
+                    echo "      " . Color::DIM . substr($err, 0, 100) . Color::RESET . "\n";
+                }
             }
         }
         if ($total > 50) { $this->addCheck('Log Errors', "{$total} (> 50)", 'FAIL'); $this->failCount++; }
@@ -479,6 +484,7 @@ class BonaForensic {
     private function sectionSecurityHeaders(): void {
         $this->printHeader('SECTION 19 · Security Headers (Runtime)');
         if (!$this->runServer) { $this->info("Runtime check skipped (use --server)."); $this->addCheck('Security Headers', 'Skipped', 'SKIP'); return; }
+        if (!function_exists('curl_init')) { $this->warn("Fungsi cURL tidak tersedia di PHP. Jalankan: sudo apt install php8.3-curl"); $this->addCheck('Security Headers', 'cURL missing', 'SKIP'); return; }
         
         $port = rand(9000, 9999);
         $cmd = "php -S 127.0.0.1:{$port} -t {$this->rootDir} > /dev/null 2>&1 &";
@@ -577,6 +583,7 @@ class BonaForensic {
     private function sectionCookieSession(): void {
         $this->printHeader('SECTION 25 · Cookie & Session Security');
         if (!$this->runServer) { $this->info("Runtime check skipped (use --server)."); $this->addCheck('Cookie Security', 'Skipped', 'SKIP'); return; }
+        if (!function_exists('curl_init')) { $this->warn("Fungsi cURL tidak tersedia di PHP. Jalankan: sudo apt install php8.3-curl"); $this->addCheck('Cookie Security', 'cURL missing', 'SKIP'); return; }
         
         $port = rand(9000, 9999);
         exec("php -S 127.0.0.1:{$port} -t {$this->rootDir} > /dev/null 2>&1 &");

@@ -31,7 +31,7 @@ class PageSpeedChecker extends AbstractChecker {
 
     public function run(): array {
         $targetDir = $this->config->getTargetDir();
-        $toolDir = method_exists($this->config, 'getToolDir') ? $this->config->getToolDir() : '';
+        $toolDir = $this->config->getToolDir();
         $isSelfAudit = $toolDir !== '' && realpath($targetDir) === realpath($toolDir);
 
         $files = FileSystem::scanDir($targetDir, ['php', 'html', 'phtml', 'twig']);

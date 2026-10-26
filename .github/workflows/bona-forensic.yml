@@ -2,7 +2,7 @@
 # │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
 # │  ──────────────────────────────────────────────────────────────────  │
 # │  File      : .github/workflows/bona-forensic.yml
-# │  Purpose   : Bona Forensic self-audit workflow
+# │  Purpose   : Bona Forensic self-audit workflow (multi-PHP matrix)
 # │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
 # │  GitHub    : https://github.com/setuju                               │
 # │  Website   : https://saturumah.net                                   │
@@ -44,12 +44,23 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: curl, xml, mbstring, pdo_mysql, tokenizer, fileinfo
           tools: composer
+          coverage: none
 
-      - name: Install Composer dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ matrix.php }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ matrix.php }}-
+
+      - name: Install Composer dependencies (no-dev)
+        run: composer install --no-dev --prefer-dist --no-progress --no-interaction
+
+      - name: Make bin/forensic executable
+        run: chmod +x bin/forensic
 
       - name: Run Bona Forensic (CI mode)
-        run: ./bin/forensic --root=. --ci --show-findings || true
+        run: ./bin/forensic --root=. --ci --show-findings
 
       - name: Generate JSON report
         if: always()
@@ -69,3 +80,4 @@ jobs:
             .bona/logs/
             .bona/*.mmd
           retention-days: 14
+          if-no-files-found: ignore

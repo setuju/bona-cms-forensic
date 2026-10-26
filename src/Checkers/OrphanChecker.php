@@ -6,16 +6,16 @@ use SatuRumah\Forensic\Core\FileSystem;
 
 class OrphanChecker extends AbstractChecker {
     public function getName(): string { return 'Orphan Detection'; }
-
     public function run(): array {
+        // Folder ini berisi entry point CLI/Web, bukan file logika
         $excludeDirs = [
             'vendor', 'node_modules', '.git', 'tests', 'storage', 'cache', 'tmp', '.bona',
-            'admin', 'api', 'cron', 'debug', 'scripts', 'migrations',
-            'templates', 'views' // <-- Ditambahkan: Folder view biasanya di-load secara dinamis
+            'admin', 'api', 'cron', 'debug', 'scripts', 'migrations', 'templates', 'views',
+            'system', 'bin' // <-- Folder CLI/system
         ];
         
         $files = FileSystem::scanDir($this->config->getTargetDir(), ['php'], $excludeDirs);
-        $entryPoints = ['index.php', 'public/index.php', 'app.php', 'router.php', 'install.php', 'forgot-password.php', 'reset-password.php', 'preview.php'];
+        $entryPoints = ['index.php', 'public/index.php', 'app.php', 'router.php', 'install.php', 'forgot-password.php', 'reset-password.php', 'preview.php', 'subscribe.php', 'unsubscribe.php'];
         $entryAbs = array_map(fn($e) => realpath($this->config->getTargetDir() . '/' . $e) ?: $this->config->getTargetDir() . '/' . $e, $entryPoints);
 
         $reverseGraph = [];

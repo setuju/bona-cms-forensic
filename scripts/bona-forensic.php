@@ -133,9 +133,12 @@ class BonaForensic {
                     case T_DIR: $parts[] = '__DIR__'; break;
                     case T_FILE: $parts[] = '__FILE__'; break;
                     case T_STRING: if ($t[1] === 'dirname') $parts[] = 'dirname'; else return [null]; break;
-                    case T_WHITESPACE: case T_STRING_CONCAT: break;
+                    case T_WHITESPACE: break;
                     default: return [null];
                 }
+            }
+            } elseif ($t === '.') {
+                // Skip concatenation operator
             }
             $i++;
         }

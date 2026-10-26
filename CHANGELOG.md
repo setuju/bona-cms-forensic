@@ -59,7 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pre-commit hook generator
 - Support for additional YAML rules (CSRF, LFI, XXE)
 
-## [2.0.0] — 2026-10-26
+## [v2.0.0] — 2026-10-26
 
 ### Added
 - **18 modular checkers** (PSR-4 architecture)
@@ -89,7 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Config::toolDir` hardcoded, prevents self-scan confusion
 - Verified read-only via 461-file MD5 comparison
 
-## [1.0.0] — 2026-10-26
+## [v1.0.0] — 2026-10-26
 
 ### Added
 - Initial release with 27 sections in single-file `bona-forensic.php`

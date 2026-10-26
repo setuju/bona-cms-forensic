@@ -222,7 +222,18 @@ class BonaForensic {
         $orphans = [];
         foreach ($this->files as $f) {
             if (in_array($f, $entryAbs, true)) continue;
-            if (empty($this->reverseGraph[$f] ?? [])) $orphans[] = ['file' => $f, 'relative' => $this->rel($f)];
+            // Skip tests, scripts, dan vendor (mereka sering dipanggil via CLI atau Autoload)
+            if (preg_match('#/(tests|scripts|vendor|migrations)/#i', $f)) continue;
+            
+            if (empty($this->reverseGraph[$f] ?? [])) {
+                // Cek apakah file mendefinisikan Class (indikasi PSR-4 Autoload)
+                $c = @file_get_contents($f);
+                if ($c && preg_match('/(class|interface|trait)\s+\w+/i', $c)) {
+                    // Kemungkinan di-load via Autoload, jangan anggap orphan mutlak
+                    continue; 
+                }
+                $orphans[] = ['file' => $f, 'relative' => $this->rel($f)];
+            }
         }
         return $orphans;
     }
@@ -232,7 +243,8 @@ class BonaForensic {
         if ($this->quick) { $this->info("Quick mode: skipped."); return; }
         $orphans = $this->findOrphans();
         if (empty($orphans)) { $this->addCheck('Orphans', 'None', 'PASS'); return; }
-        $this->warn("Found " . count($orphans) . " orphan files:");
+        $this->info("Catatan: File dengan Class/Interface di-skip karena kemungkinan di-load via Composer Autoload.");
+        $this->warn("Found " . count($orphans) . " potential orphan files (tanpa require/include manual):");
         foreach (array_slice($orphans, 0, 15) as $o) $this->warn("  → {$o['relative']}");
         if (count($orphans) > 15) $this->info("  ... dan " . (count($orphans) - 15) . " lainnya");
         $this->addCheck('Orphans', count($orphans) . " files", 'WARN'); $this->warnCount++;
@@ -328,19 +340,32 @@ class BonaForensic {
     private function sectionSecurityHeuristics(): void {
         $this->printHeader('SECTION 17 · Security Heuristics (OWASP Top 10)');
         $rules = [
+            // SQLi (Word boundary agar tidak match 'selected')
             ['SQLi-Exec', '/(mysql_query|mysqli_query|pg_query)\s*\(.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
-            ['SQLi-Query', '/(SELECT|INSERT|UPDATE|DELETE).*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
-            ['XSS-Echo', '/echo\s+.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
+            ['SQLi-Query', '/\b(SELECT|INSERT|UPDATE|DELETE)\b.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
+            
+            // XSS (Negative lookahead untuk skip fungsi escape seperti e() atau htmlspecialchars())
+            ['XSS-Echo', '/echo\s+(?!e\(|htmlspecialchars\(|strip_tags\().*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
             ['XSS-Print', '/print(_r)?\s*\(.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
+            
+            // LFI/RFI
             ['LFI', '/(include|require)(_once)?\s*\(?\s*\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
             ['RFI', '/(include|require)(_once)?\s*\(?\s*["\']https?:\/\//i', 'FAIL'],
+            
+            // RCE (Negative lookbehind agar tidak match method ->exec() dari PDO)
             ['RCE-Eval', '/\beval\s*\(/i', 'FAIL'],
-            ['RCE-System', '/\b(system|exec|shell_exec|passthru|popen|proc_open)\s*\(/i', 'FAIL'],
+            ['RCE-System', '/(?<!->)\b(system|exec|shell_exec|passthru|popen|proc_open)\s*\(/i', 'FAIL'],
             ['RCE-Backtick', '/`[^`]*\$_(GET|POST|REQUEST)[^`]*`/i', 'FAIL'],
+            
+            // Path Traversal & SSRF
             ['Path-Traversal', '/(file_get_contents|fopen|readfile|file_put_contents)\s*\(.*?\$_(GET|POST|REQUEST)/i', 'FAIL'],
             ['SSRF', '/(curl_exec|fopen|file_get_contents)\s*\(.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
+            
+            // XXE & Redirect
             ['XXE', '/libxml_disable_entity_loader\s*\(\s*(false|0)\s*\)/i', 'FAIL'],
             ['Redirect', '/header\s*\(\s*["\']Location:\s*["\']?\s*\.\s*\$_(GET|POST|REQUEST)/i', 'FAIL'],
+            
+            // Weak Crypto & Deserialization
             ['WeakHash', '/\b(md5|sha1)\s*\(\s*\$[a-zA-Z_]*(password|pass|pwd|secret)/i', 'FAIL'],
             ['Deserialize', '/\bunserialize\s*\(\s*\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL']
         ];

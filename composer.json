@@ -22,6 +22,11 @@
         "bin/forensic"
     ],
     "require-dev": {
-        "phpunit/phpunit": "^10.5 || ^11.0 || ^12.0 || ^13.0"
+        "phpunit/phpunit": "^10.5 || ^11.0 || ^12.0 || ^13.0",
+        "phpstan/phpstan": "^1.12 || ^2.0",
+        "jbelien/phpstan-sarif-formatter": "^1.2"
+    },
+    "scripts": {
+        "phpstan": "phpstan analyse --level=8 --no-progress src bin"
     }
 }

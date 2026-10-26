@@ -1,0 +1,31 @@
+# ┌──────────────────────────────────────────────────────────────────────┐
+# │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
+# │  ──────────────────────────────────────────────────────────────────  │
+# │  File      : phpstan.neon
+# │  Purpose   : PHPStan static analysis configuration (level 8)
+# │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
+# │  GitHub    : https://github.com/setuju                               │
+# │  Website   : https://saturumah.net                                   │
+# │  Created   : 2026-10-26                                              │
+# │  License   : Proprietary — all rights reserved                       │
+# └──────────────────────────────────────────────────────────────────────┘
+
+parameters:
+    level: 8
+    paths:
+        - src
+        - bin
+    excludePaths:
+        - vendor/*
+        - .bona/*
+        - rules/*
+    treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: false
+
+    ignoreErrors:
+        # Allow dynamic calls in checker pattern matching
+        - '#Cannot call method .* on mixed#'
+        # Allow array access on mixed from file_get_contents results
+        - '#Cannot access offset .* on mixed#'
+        # Allow token_get_all result (returns array|string)
+        - '#Parameter .* of function preg_match expects string, string\|false given#'

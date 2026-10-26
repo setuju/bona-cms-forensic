@@ -14,3 +14,7 @@ vendor/
 .DS_Store
 .idea/
 .vscode/
+
+# PHPStan artifacts
+phpstan-results.sarif
+.phpstan-cache/

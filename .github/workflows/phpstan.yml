@@ -1,16 +1,20 @@
 # ┌──────────────────────────────────────────────────────────────────────┐
 # │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
 # │  ──────────────────────────────────────────────────────────────────  │
-# │  File      : .github/workflows/codeql.yml
-# │  Purpose   : GitHub CodeQL static analysis workflow
+# │  File      : .github/workflows/phpstan.yml
+# │  Purpose   : PHPStan static analysis with SARIF upload to Code Scanning
 # │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
 # │  GitHub    : https://github.com/setuju                               │
 # │  Website   : https://saturumah.net                                   │
 # │  Created   : 2026-10-26                                              │
 # │  License   : Proprietary — all rights reserved                       │
 # └──────────────────────────────────────────────────────────────────────┘
+#
+# Why not CodeQL? Because CodeQL has NO first-party PHP support.
+# PHPStan + SARIF gives the SAME experience in the "Security" tab.
+# Reference: https://github.com/orgs/community/discussions/158392
 
-name: "CodeQL"
+name: "PHPStan (Code Scanning)"
 
 on:
   push:
@@ -24,23 +28,18 @@ permissions:
   contents: read
 
 jobs:
-  analyze:
-    name: Analyze PHP
+  phpstan:
+    name: PHPStan Level 8
     runs-on: ubuntu-24.04
     permissions:
-      security-events: write
+      security-events: write   # required to upload SARIF
       actions: read
       contents: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [php]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup PHP
+      - name: Setup PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
@@ -48,16 +47,37 @@ jobs:
           tools: composer
           coverage: none
 
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: composer-phpstan-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-phpstan-
+
       - name: Install Composer dependencies
-        run: composer install --no-dev --prefer-dist --no-progress --no-interaction
+        run: composer install --prefer-dist --no-progress --no-interaction
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: ${{ matrix.language }}
-          queries: security-extended,security-and-quality
+      - name: Run PHPStan (SARIF output)
+        run: |
+          vendor/bin/phpstan analyse \
+            --configuration=phpstan.neon \
+            --error-format=sarif \
+            --no-progress \
+            > phpstan-results.sarif || true
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          category: "/language:${{ matrix.language }}"
+          sarif_file: phpstan-results.sarif
+          category: phpstan
+          wait-for-processing: true
+
+      - name: Upload SARIF as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phpstan-sarif
+          path: phpstan-results.sarif
+          retention-days: 14
+          if-no-files-found: ignore

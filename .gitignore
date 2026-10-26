@@ -6,7 +6,6 @@ forensic-report.json
 
 # Dependencies
 vendor/
-composer.lock
 
 # Logs
 *.log

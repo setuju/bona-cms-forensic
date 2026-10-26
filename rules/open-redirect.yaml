@@ -1,0 +1,39 @@
+# ┌──────────────────────────────────────────────────────────────────────┐
+# │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
+# │  ──────────────────────────────────────────────────────────────────  │
+# │  File      : rules/rules/open-redirect.yaml
+# │  Purpose   : Semgrep custom rules: Open redirect detection
+# │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
+# │  GitHub    : https://github.com/setuju                               │
+# │  Website   : https://saturumah.net                                   │
+# │  Created   : 2026-10-26                                              │
+# │  License   : Proprietary — all rights reserved                       │
+# │                                                                      │
+# │  This header is the file contract. If it is missing, the file is     │
+# │  vendored, generated, or outside the project boundary.               │
+# └──────────────────────────────────────────────────────────────────────┘
+#
+# @author    Jack <Jack[at]SatuRumah[dot]Net>
+# @created   2026-10-26
+# @package   SatuRumah\Forensic\Rules
+# @license   Proprietary
+
+rules:
+  - id: php-open-redirect-header-user
+    pattern-regex: 'header\s*\([^;]*Location[^;]*\$_(GET|POST|REQUEST|COOKIE)'
+    message: "header(Location) with user input - open redirect risk"
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-601: URL Redirection to Untrusted Site"
+      owasp: "A01:2021 - Broken Access Control"
+  - id: php-open-redirect-wp-redirect
+    pattern-either:
+      - pattern: wp_redirect($_GET[...])
+      - pattern: wp_redirect($_POST[...])
+      - pattern: wp_redirect($_REQUEST[...])
+    message: "wp_redirect() with user input — use wp_safe_redirect instead"
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-601"

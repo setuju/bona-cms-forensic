@@ -1,0 +1,57 @@
+# ┌──────────────────────────────────────────────────────────────────────┐
+# │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
+# │  ──────────────────────────────────────────────────────────────────  │
+# │  File      : rules/rules/ssrf.yaml
+# │  Purpose   : Semgrep custom rules: Server-Side Request Forgery (SSRF) detection
+# │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
+# │  GitHub    : https://github.com/setuju                               │
+# │  Website   : https://saturumah.net                                   │
+# │  Created   : 2026-10-26                                              │
+# │  License   : Proprietary — all rights reserved                       │
+# │                                                                      │
+# │  This header is the file contract. If it is missing, the file is     │
+# │  vendored, generated, or outside the project boundary.               │
+# └──────────────────────────────────────────────────────────────────────┘
+#
+# @author    Jack <Jack[at]SatuRumah[dot]Net>
+# @created   2026-10-26
+# @package   SatuRumah\Forensic\Rules
+# @license   Proprietary
+
+rules:
+  - id: php-ssrf-file-get-contents-user
+    pattern-either:
+      - pattern: file_get_contents($_GET[...])
+      - pattern: file_get_contents($_POST[...])
+      - pattern: file_get_contents($_REQUEST[...])
+      - pattern: file_get_contents($_COOKIE[...])
+    message: "file_get_contents() on user input — SSRF risk"
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-918: Server-Side Request Forgery"
+      owasp: "A10:2021 - SSRF"
+
+  - id: php-ssrf-curl-url-user
+    pattern-either:
+      - pattern: curl_setopt($CH, CURLOPT_URL, $_GET[...])
+      - pattern: curl_setopt($CH, CURLOPT_URL, $_POST[...])
+      - pattern: curl_setopt($CH, CURLOPT_URL, $_REQUEST[...])
+      - pattern: curl_setopt($CH, CURLOPT_URL, $_COOKIE[...])
+    message: "curl CURLOPT_URL on user input — SSRF risk"
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-918"
+
+  - id: php-ssrf-fopen-user
+    pattern-either:
+      - pattern: fopen($_GET[...], ...)
+      - pattern: fopen($_POST[...], ...)
+      - pattern: fopen($_REQUEST[...], ...)
+      - pattern: fopen($_COOKIE[...], ...)
+    message: "fopen() on user input — SSRF or path traversal"
+    languages: [php]
+    severity: WARNING
+    metadata:
+      cwe: "CWE-918"

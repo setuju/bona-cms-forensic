@@ -26,6 +26,23 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.5.0] - 2026-10-26
+
+### Added
+- **Semgrep custom rules expansion (5 new)**: `xxe`, `ssrf`, `deserialize`, `lfi`, `open-redirect`
+  - Coverage: CWE-611, CWE-918, CWE-502, CWE-98, CWE-601
+  - Auto-discovered by `SemgrepChecker` — no code changes needed
+  - Zero false positives on self-audit and Bona-CMS-Dev-X target
+  - Superglobal-only sinks (`$_GET`/`$_POST`/`$_REQUEST`/`$_COOKIE`)
+    to avoid FP on variable-based usage
+
+### Deferred
+- **CSRF rule** — deferred to v2.4 (AST-based dedicated checker).
+  Initial line-based regex produced 61 false positives on Bona-CMS-Dev-X
+  (every POST form flagged regardless of token presence).
+  `AdvancedSecurityChecker` provides runtime CSRF surface checks
+  in the meantime.
+
 ## [v2.1.0] - 2026-10-26
 
 ### Added

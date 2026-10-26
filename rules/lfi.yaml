@@ -1,0 +1,45 @@
+# ┌──────────────────────────────────────────────────────────────────────┐
+# │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
+# │  ──────────────────────────────────────────────────────────────────  │
+# │  File      : rules/rules/lfi.yaml
+# │  Purpose   : Semgrep custom rules: Local/Remote File Inclusion (LFI/RFI) detection
+# │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
+# │  GitHub    : https://github.com/setuju                               │
+# │  Website   : https://saturumah.net                                   │
+# │  Created   : 2026-10-26                                              │
+# │  License   : Proprietary — all rights reserved                       │
+# │                                                                      │
+# │  This header is the file contract. If it is missing, the file is     │
+# │  vendored, generated, or outside the project boundary.               │
+# └──────────────────────────────────────────────────────────────────────┘
+#
+# @author    Jack <Jack[at]SatuRumah[dot]Net>
+# @created   2026-10-26
+# @package   SatuRumah\Forensic\Rules
+# @license   Proprietary
+
+rules:
+  - id: php-lfi-include-user
+    pattern-either:
+      - pattern: include($_GET[...])
+      - pattern: include($_POST[...])
+      - pattern: include($_REQUEST[...])
+      - pattern: include($_COOKIE[...])
+      - pattern: include_once($_GET[...])
+      - pattern: include_once($_POST[...])
+      - pattern: include_once($_REQUEST[...])
+      - pattern: include_once($_COOKIE[...])
+      - pattern: require($_GET[...])
+      - pattern: require($_POST[...])
+      - pattern: require($_REQUEST[...])
+      - pattern: require($_COOKIE[...])
+      - pattern: require_once($_GET[...])
+      - pattern: require_once($_POST[...])
+      - pattern: require_once($_REQUEST[...])
+      - pattern: require_once($_COOKIE[...])
+    message: "include/require on user input — LFI/RFI risk"
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-98: Improper Control of Filename for Include/Require"
+      owasp: "A03:2021 - Injection"

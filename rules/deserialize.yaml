@@ -1,0 +1,41 @@
+# ┌──────────────────────────────────────────────────────────────────────┐
+# │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
+# │  ──────────────────────────────────────────────────────────────────  │
+# │  File      : rules/rules/deserialize.yaml
+# │  Purpose   : Semgrep custom rules: Insecure deserialization detection
+# │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
+# │  GitHub    : https://github.com/setuju                               │
+# │  Website   : https://saturumah.net                                   │
+# │  Created   : 2026-10-26                                              │
+# │  License   : Proprietary — all rights reserved                       │
+# │                                                                      │
+# │  This header is the file contract. If it is missing, the file is     │
+# │  vendored, generated, or outside the project boundary.               │
+# └──────────────────────────────────────────────────────────────────────┘
+#
+# @author    Jack <Jack[at]SatuRumah[dot]Net>
+# @created   2026-10-26
+# @package   SatuRumah\Forensic\Rules
+# @license   Proprietary
+
+rules:
+  - id: php-deser-unserialize-user
+    pattern-either:
+      - pattern: unserialize($_GET[...])
+      - pattern: unserialize($_POST[...])
+      - pattern: unserialize($_REQUEST[...])
+      - pattern: unserialize($_COOKIE[...])
+    message: "unserialize() on user input — insecure deserialization (RCE risk)"
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-502: Deserialization of Untrusted Data"
+      owasp: "A08:2021 - Software and Data Integrity Failures"
+
+  - id: php-deser-yaml-parse
+    pattern: yaml_parse(...)
+    message: "yaml_parse() — verify input source; unsafe mode may allow object injection"
+    languages: [php]
+    severity: WARNING
+    metadata:
+      cwe: "CWE-502"

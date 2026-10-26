@@ -1,0 +1,55 @@
+# ┌──────────────────────────────────────────────────────────────────────┐
+# │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
+# │  ──────────────────────────────────────────────────────────────────  │
+# │  File      : rules/rules/xxe.yaml
+# │  Purpose   : Semgrep custom rules: XML External Entity (XXE) detection
+# │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
+# │  GitHub    : https://github.com/setuju                               │
+# │  Website   : https://saturumah.net                                   │
+# │  Created   : 2026-10-26                                              │
+# │  License   : Proprietary — all rights reserved                       │
+# │                                                                      │
+# │  This header is the file contract. If it is missing, the file is     │
+# │  vendored, generated, or outside the project boundary.               │
+# └──────────────────────────────────────────────────────────────────────┘
+#
+# @author    Jack <Jack[at]SatuRumah[dot]Net>
+# @created   2026-10-26
+# @package   SatuRumah\Forensic\Rules
+# @license   Proprietary
+
+rules:
+  - id: php-xxe-libxml-entity-loader-disabled
+    pattern-either:
+      - pattern: libxml_disable_entity_loader(false)
+      - pattern: libxml_disable_entity_loader(0)
+    message: "libxml_disable_entity_loader() disabled — XXE attack surface opens"
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-611: Improper Restriction of XML External Entity"
+      owasp: "A05:2021 - Security Misconfiguration"
+
+  - id: php-xxe-libxml-noent-flag
+    pattern-either:
+      - pattern: simplexml_load_string(..., LIBXML_NOENT, ...)
+      - pattern: simplexml_load_string(..., LIBXML_DTDLOAD, ...)
+      - pattern: DOMDocument::loadXML(..., LIBXML_NOENT, ...)
+    message: "XML parse with LIBXML_NOENT/DTDLOAD — external entity resolution enabled"
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-611"
+
+  - id: php-xxe-parse-user-xml
+    pattern-either:
+      - pattern: simplexml_load_string($_GET[...])
+      - pattern: simplexml_load_string($_POST[...])
+      - pattern: simplexml_load_string($_REQUEST[...])
+      - pattern: DOMDocument::loadXML($_GET[...])
+      - pattern: DOMDocument::loadXML($_POST[...])
+    message: "XML parse on user input — verify entity loader disabled (XXE)"
+    languages: [php]
+    severity: WARNING
+    metadata:
+      cwe: "CWE-611"

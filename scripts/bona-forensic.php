@@ -357,7 +357,7 @@ class BonaForensic {
             ['SQLi-Query', '/\b(SELECT|INSERT|UPDATE|DELETE)\b.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
             
             // XSS (Negative lookahead untuk skip fungsi escape seperti e() atau htmlspecialchars())
-            ['XSS-Echo', '/echo\s+(?!e\(|htmlspecialchars\(|strip_tags\().*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
+            ['XSS-Echo', '/echo\s+(?!.*?(?:htmlspecialchars|e\(|urlencode|intval|strip_tags|filter_input)).*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
             ['XSS-Print', '/print(_r)?\s*\(.*?\$_(GET|POST|REQUEST|COOKIE)/i', 'FAIL'],
             
             // LFI/RFI
@@ -401,7 +401,10 @@ class BonaForensic {
             if (!$this->showFindings && $f['severity'] !== 'FAIL') continue;
             $icon = $f['severity'] === 'FAIL' ? Color::RED . '✗' : Color::YELLOW . '⚠';
             echo "  {$icon}" . Color::RESET . " {$f['file']}:{$f['line']} [{$f['rule']}]\n";
-            if ($this->showFindings) echo "      " . Color::DIM . htmlspecialchars($f['snippet']) . Color::RESET . "\n";
+            // Tampilkan snippet JIKA flag showFindings aktif ATAU ini adalah FAIL (critical)
+            if ($this->showFindings || $f['severity'] === 'FAIL') {
+                echo "      " . Color::DIM . htmlspecialchars($f['snippet']) . Color::RESET . "\n";
+            }
             if (!$this->showFindings && ++$shown >= 15) { echo "  " . Color::DIM . "... dan " . (count($findings) - 15) . " lainnya (gunakan --show-findings)" . Color::RESET . "\n"; break; }
         }
         if ($criticalCount > 0) { $this->addCheck('Security Heuristics', "{$criticalCount} critical", 'FAIL'); $this->failCount++; }
@@ -432,7 +435,8 @@ class BonaForensic {
         if ($issues > 0) { $this->warn("Found {$issues} SEO issues (missing title/meta)."); $this->addCheck('SEO', "{$issues} issues", 'WARN'); $this->warnCount++; } 
         else { $this->pass("Basic SEO tags present in all templates."); $this->addCheck('SEO', 'All good', 'PASS'); }
     }
-    private function sectionCls(): void { $this->printHeader('SECTION 21 · CLS Prevention'); $issues = 0; foreach ($this->scanFiles(['php', 'html', 'phtml']) as $file) { $c = @file_get_contents($file); if ($c === false) continue; preg_match_all('/<img\b[^>]*>/i', $c, $m); foreach ($m[0] as $img) { if (!preg_match('/\bwidth\s*=/i', $img) || !preg_match('/\bheight\s*=/i', $img)) $issues++; } } if ($issues > 0) { $this->addCheck('CLS Prevention', "{$issues} risks", 'WARN'); $this->warnCount++; } else $this->addCheck('CLS Prevention', 'Clean', 'PASS'); }
+    private function sectionCls(): void { $this->printHeader('SECTION 21 · CLS Prevention'); $issues = 0; foreach ($this->scanFiles(['php', 'html', 'phtml']) as $file) { $c = @file_get_contents($file); if ($c === false) continue; preg_match_all('/<img\b[^>]*>/i', $c, $m); foreach ($m[0] as $img) { if (!preg_match('/\bwidth\s*=/i', $img) || !preg_match('/\bheight\s*=/i', $img)) $issues++; } } if ($issues > 0) { $this->warn("Found {$issues} images without width/height (CLS risk)."); $this->addCheck('CLS Prevention', "{$issues} risks", 'WARN'); $this->warnCount++; }
+        else { $this->pass("No CLS risks detected (all images have dimensions)."); $this->addCheck('CLS Prevention', 'Clean', 'PASS'); } }
     private function sectionPageSpeed(): void { $this->printHeader('SECTION 22 · Page Speed Hints'); $this->info("Static page speed hints analyzed."); $this->addCheck('Page Speed', 'Clean', 'PASS'); }
     private function sectionCve(): void { $this->printHeader('SECTION 23 · CVE & Dependency Audit'); $this->info("No composer.lock found. Skipping dependency CVE audit."); $this->addCheck('Composer Audit', 'No composer.lock', 'SKIP'); }
     private function sectionCmsFeatures(): void { $this->printHeader('SECTION 24 · CMS Security Features'); $this->info("CMS security features analyzed (MFA, RBAC, etc)."); $this->addCheck('CMS Features', 'Analyzed', 'PASS'); }

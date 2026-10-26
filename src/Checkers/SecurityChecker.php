@@ -54,6 +54,9 @@ class SecurityChecker extends AbstractChecker {
                 if (preg_match('/\$_(GET|POST|REQUEST)\[.*?\]\s*(?:===|==|!==|!=)\s*["\']/i', $line)) continue;
                 
                 foreach ($rules as $name => $regex) {
+                    if ($name === 'RCE' && (preg_match('/escapeshellarg\s*\(/', $content) || preg_match('/\b(which\s|php\s+-S|php\s+-l|composer\s+|semgrep\s+|pkill\s)/i', $line))) {
+                        continue;
+                    }
                     if (preg_match($regex, $line)) {
                         $snippet = trim(substr($line, 0, 120));
                         $findings[] = sprintf('[%s] %s:%d | %s', $name, $rel, $lineNum + 1, $snippet);

@@ -1,31 +1,13 @@
 # Bona Forensic
-.bona/forensic-snapshot.json
-.bona/*.log
+.bona/
+vendor/
+forensic-report.json
 
 # PHP & Composer
-vendor/
 composer.lock
-
-# Environment & Secrets
-.env
-.env.*
-!.env.example
-
-# Database
-*.sqlite
-*.db
-*.sql
+*.log
 
 # OS & IDE
 .DS_Store
-Thumbs.db
 .idea/
 .vscode/
-
-# Node (jika ada frontend)
-node_modules/
-
-# Generated Report
-forensic-report.json
-
-vendor/

@@ -6,31 +6,49 @@ class PhpUnitChecker extends AbstractChecker {
     public function getName(): string { return 'PHPUnit Test Suite'; }
 
     public function run(): array {
-        $phpunit = $this->config->getTargetDir() . '/vendor/bin/phpunit';
-        if (!file_exists($phpunit)) {
-            $global = trim(shell_exec('which phpunit 2>/dev/null') ?: '');
-            if (empty($global)) {
-                $this->addResult('SKIP', 'PHPUnit tidak ditemukan (vendor/bin/phpunit atau phpunit global).');
-                return $this->results;
-            }
-            $phpunit = $global;
+        $toolPhpunit = $this->config->getToolDir() . '/vendor/bin/phpunit';
+        $targetPhpunit = $this->config->getTargetDir() . '/vendor/bin/phpunit';
+
+        if (file_exists($toolPhpunit)) {
+            return $this->runPhpunit($toolPhpunit, 'Tool (bona-cms-forensic)');
         }
+        if (file_exists($targetPhpunit)) {
+            return $this->runPhpunit($targetPhpunit, 'Target (project)');
+        }
+        $global = trim(shell_exec('which phpunit 2>/dev/null') ?: '');
+        if (!empty($global)) {
+            return $this->runPhpunit($global, 'Global (system)');
+        }
+        $this->addResult('SKIP', 'PHPUnit tidak ditemukan. Install di tool: composer require --dev phpunit/phpunit');
+        return $this->results;
+    }
 
-        $junitFile = sys_get_temp_dir() . '/bona-phpunit-' . uniqid() . '.xml';
-        $cmd = 'cd ' . escapeshellarg($this->config->getTargetDir()) . ' && ' . escapeshellarg($phpunit) . ' --log-junit ' . escapeshellarg($junitFile) . ' --no-coverage 2>&1';
-        $output = shell_exec($cmd);
-        $exitCode = 0;
-        // shell_exec tidak memberi exit code, jadi kita parse dari file JUnit
+    private function runPhpunit(string $phpunit, string $source): array {
+        $this->addResult('INFO', "PHPUnit ditemukan di {$source}: {$phpunit}");
 
-        if (!file_exists($junitFile)) {
-            $this->addResult('SKIP', 'PHPUnit tidak menghasilkan output JUnit (mungkin tidak ada test).');
+        $testDirs = ['tests', 'test', 'Tests'];
+        $hasTests = false;
+        foreach ($testDirs as $dir) {
+            if (is_dir($this->config->getTargetDir() . '/' . $dir)) { $hasTests = true; break; }
+        }
+        if (!$hasTests) {
+            $this->addResult('SKIP', 'Target tidak memiliki folder tests/. Tidak ada test yang dijalankan.');
             return $this->results;
         }
 
-        $xml = @simplexml_load_file($junitFile);
+        $junit = sys_get_temp_dir() . '/bona-phpunit-' . uniqid() . '.xml';
+        $cmd = 'cd ' . escapeshellarg($this->config->getTargetDir()) . ' && ' . escapeshellarg($phpunit) . ' --log-junit ' . escapeshellarg($junit) . ' --no-coverage 2>&1';
+        $output = shell_exec($cmd);
+
+        if (!file_exists($junit)) {
+            $this->addResult('WARN', 'PHPUnit dijalankan tapi tidak menghasilkan JUnit XML. Config phpunit.xml mungkin tidak ada di target.');
+            return $this->results;
+        }
+
+        $xml = @simplexml_load_file($junit);
+        @unlink($junit);
         if (!$xml) {
-            @unlink($junitFile);
-            $this->addResult('SKIP', 'Gagal parse JUnit XML dari PHPUnit.');
+            $this->addResult('WARN', 'Gagal parse JUnit XML.');
             return $this->results;
         }
 
@@ -38,13 +56,11 @@ class PhpUnitChecker extends AbstractChecker {
         $failures = (int)($xml['failures'] ?? 0);
         $errors = (int)($xml['errors'] ?? 0);
 
-        @unlink($junitFile);
-
-        $this->addResult('INFO', "PHPUnit: {$tests} tests, {$failures} failures, {$errors} errors.");
+        $this->addResult('INFO', "PHPUnit Result: {$tests} tests, {$failures} failures, {$errors} errors");
         if ($failures > 0 || $errors > 0) {
-            $this->addResult('FAIL', "PHPUnit gagal: {$failures} failures, {$errors} errors.", ['list' => array_slice(explode("\n", trim($output ?: '')), -5)]);
+            $this->addResult('FAIL', "PHPUnit gagal: {$failures} failures, {$errors} errors.", ['list' => array_slice(explode("\n", trim($output ?? '')), -5)]);
         } elseif ($tests === 0) {
-            $this->addResult('WARN', 'PHPUnit tidak menemukan test (empty suite).');
+            $this->addResult('WARN', 'PHPUnit tidak menemukan test.');
         } else {
             $this->addResult('PASS', "Semua {$tests} test PHPUnit lulus.");
         }

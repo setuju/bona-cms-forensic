@@ -1,0 +1,22 @@
+rules:
+  - id: php-rce-eval
+    pattern: eval(...)
+    message: "eval() detected - potential RCE"
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-94: Code Injection"
+
+  - id: php-rce-system
+    pattern: system(...)
+    message: "system() detected - potential RCE"
+    languages: [php]
+    severity: WARNING
+    metadata:
+      cwe: "CWE-78: OS Command Injection"
+
+  - id: php-rce-shell-exec
+    pattern: shell_exec(...)
+    message: "shell_exec() detected - potential RCE"
+    languages: [php]
+    severity: WARNING

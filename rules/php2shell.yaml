@@ -1,0 +1,14 @@
+rules:
+  - id: php2shell-memory-limit-override
+    pattern: ini_set("memory_limit", ...)
+    message: "Overriding memory_limit at runtime can re-expose php2shell (CVE-2026-109618). Use php_admin_value instead."
+    languages: [php]
+    severity: WARNING
+    metadata:
+      cwe: "CWE-400: Uncontrolled Resource Consumption"
+
+  - id: php2shell-post-max-size
+    pattern: ini_set("post_max_size", ...)
+    message: "Overriding post_max_size at runtime can re-expose php2shell. Configure at server level."
+    languages: [php]
+    severity: WARNING

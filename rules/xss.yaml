@@ -1,0 +1,16 @@
+rules:
+  - id: php-xss-echo-get
+    pattern: echo $_GET[...]
+    message: "XSS: unescaped output of $_GET"
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-79: Cross-site Scripting"
+
+  - id: php-xss-echo-post
+    pattern: echo $_POST[...]
+    message: "XSS: unescaped output of $_POST"
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-79"

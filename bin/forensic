@@ -20,6 +20,10 @@ use SatuRumah\Forensic\Checkers\SnapshotChecker;
 use SatuRumah\Forensic\Checkers\DatabaseChecker;
 use SatuRumah\Forensic\Checkers\ImportDepthChecker;
 use SatuRumah\Forensic\Checkers\CentralityChecker;
+use SatuRumah\Forensic\Checkers\Php2ShellChecker;
+use SatuRumah\Forensic\Checkers\SemgrepChecker;
+use SatuRumah\Forensic\Checkers\PhpUnitChecker;
+use SatuRumah\Forensic\Checkers\SmokeTestChecker;
 
 $target = getcwd();
 $showFindings = in_array('--show-findings', $argv, true);
@@ -54,6 +58,10 @@ $checkers = [
     new AdvancedSecurityChecker($config),
     new ConfigChecker($config),
     new DatabaseChecker($config),
+    new Php2ShellChecker($config),
+    new SemgrepChecker($config),
+    new PhpUnitChecker($config),
+    new SmokeTestChecker($config),
     new LogChecker($config),
     new SeoChecker($config),
     new ClsChecker($config),
@@ -80,7 +88,6 @@ foreach ($checkers as $checker) {
                 'WARN' => "\033[0;33m⚠\033[0m", 'SKIP' => "\033[0;90m○\033[0m", default => "\033[0;34mℹ\033[0m"
             };
             echo "  {$icon} {$res['message']}\n";
-            
             if (in_array($res['status'], ['FAIL', 'WARN', 'INFO']) && !empty($res['details']['list'])) {
                 $list = $res['details']['list'];
                 $items = $showFindings ? $list : array_slice($list, 0, 10);

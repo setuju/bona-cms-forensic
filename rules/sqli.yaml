@@ -1,0 +1,24 @@
+rules:
+  - id: php-sqli-concat
+    patterns:
+      - pattern-either:
+          - pattern: $DB->query("..." . $_GET[...] . "...")
+          - pattern: $DB->query("..." . $_POST[...] . "...")
+          - pattern: $DB->query("..." . $_REQUEST[...] . "...")
+    message: "SQL Injection via string concatenation with user input"
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-89: SQL Injection"
+      owasp: "A03:2021 - Injection"
+
+  - id: php-sqli-interpolate
+    patterns:
+      - pattern-either:
+          - pattern: $DB->query("... $_GET[...] ...")
+          - pattern: $DB->query("... $_POST[...] ...")
+    message: "SQL Injection via string interpolation with user input"
+    languages: [php]
+    severity: ERROR
+    metadata:
+      cwe: "CWE-89"

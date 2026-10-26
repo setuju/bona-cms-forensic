@@ -2,13 +2,16 @@
 # │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
 # │  ──────────────────────────────────────────────────────────────────  │
 # │  File      : phpstan.neon
-# │  Purpose   : PHPStan static analysis configuration (level 6)
+# │  Purpose   : PHPStan config (level 6 + SARIF formatter)
 # │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
 # │  GitHub    : https://github.com/setuju                               │
 # │  Website   : https://saturumah.net                                   │
 # │  Created   : 2026-10-26                                              │
 # │  License   : Proprietary — all rights reserved                       │
 # └──────────────────────────────────────────────────────────────────────┘
+
+includes:
+    - vendor/jbelien/phpstan-sarif-formatter/extension.neon
 
 parameters:
     level: 6
@@ -22,15 +25,10 @@ parameters:
     treatPhpDocTypesAsCertain: false
     reportUnmatchedIgnoredErrors: false
 
-    # === Pragmatic ignores (audit tool, not consumed as library) ===
     ignoreErrors:
-        # Iterable type hints are optional for internal tooling
         - identifier: missingType.iterableValue
         - identifier: missingType.generics
         - identifier: missingType.parameter
-
-        # Tokenizer returns array|string — type narrowing needed
         - '#Parameter .* of function preg_match expects string, string\|false given#'
-
-        # Dynamic exec/shell results
         - '#Parameter .* of function json_decode expects string, string\|false given#'
+        - '#Call to preg_quote\(\) is missing delimiter#'

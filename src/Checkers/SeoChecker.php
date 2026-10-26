@@ -156,7 +156,7 @@ class SeoChecker extends AbstractChecker {
                 $issues[] = "Missing canonical URL";
             }
             foreach (['og:title', 'og:description', 'og:image', 'og:url'] as $og) {
-                if (!preg_match('/<meta\s+property=["\']' . preg_quote($og) . '["\']/i', $content) && !$isDynamic) {
+                if (!preg_match('/<meta\s+property=["\']' . preg_quote($og, '/') . '["\']/i', $content) && !$isDynamic) {
                     $issues[] = "Missing {$og}";
                 }
             }

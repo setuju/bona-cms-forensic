@@ -1,3 +1,23 @@
+# ┌──────────────────────────────────────────────────────────────────────┐
+# │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
+# │  ──────────────────────────────────────────────────────────────────  │
+# │  File      : rules/php2shell.yaml
+# │  Purpose   : Semgrep custom rules: PHP2Shell CVE-2026-109618/109619 detection
+# │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
+# │  GitHub    : https://github.com/setuju                               │
+# │  Website   : https://saturumah.net                                   │
+# │  Created   : 2026-10-26                                              │
+# │  License   : Proprietary — all rights reserved                       │
+# │                                                                      │
+# │  This header is the file contract. If it is missing, the file is     │
+# │  vendored, generated, or outside the project boundary.               │
+# └──────────────────────────────────────────────────────────────────────┘
+#
+# @author    Jack <Jack[at]SatuRumah[dot]Net>
+# @created   2026-10-26
+# @package   SatuRumah\Forensic\Rules
+# @license   Proprietary
+
 rules:
   - id: php2shell-memory-limit-override
     pattern: ini_set("memory_limit", ...)

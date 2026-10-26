@@ -44,6 +44,9 @@ class SecurityChecker extends AbstractChecker {
         foreach ($files as $file) {
             $content = @file_get_contents($file); if (!$content) continue;
             $rel = substr($file, strlen($this->config->getTargetDir()) + 1);
+            // Skip file audit internal (DatabaseChecker memang query metadata DB)
+            $isInternalAuditFile = (basename($file) === 'DatabaseChecker.php');
+            if ($isInternalAuditFile) continue;
             
             foreach (explode("\n", $content) as $lineNum => $line) {
                 $trimmed = ltrim($line);

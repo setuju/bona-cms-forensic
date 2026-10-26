@@ -2,15 +2,12 @@
 # │  ⌂  SATURUMAH.NET · FILE CONTRACT                                    │
 # │  ──────────────────────────────────────────────────────────────────  │
 # │  File      : rules/rce.yaml
-# │  Purpose   : Semgrep custom rules: Remote Code Execution detection patterns
+# │  Purpose   : Semgrep custom rules: Remote Code Execution detection
 # │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
 # │  GitHub    : https://github.com/setuju                               │
 # │  Website   : https://saturumah.net                                   │
 # │  Created   : 2026-10-26                                              │
 # │  License   : Proprietary — all rights reserved                       │
-# │                                                                      │
-# │  This header is the file contract. If it is missing, the file is     │
-# │  vendored, generated, or outside the project boundary.               │
 # └──────────────────────────────────────────────────────────────────────┘
 #
 # @author    Jack <Jack[at]SatuRumah[dot]Net>
@@ -27,19 +24,20 @@ rules:
     metadata:
       cwe: "CWE-94: Code Injection"
 
-  - id: php-rce-system
-    pattern: system(...)
-    message: "system() detected - potential RCE"
+  - id: php-rce-shell-exec-user-input
+    patterns:
+      - pattern: shell_exec(...)
+      - pattern-not: shell_exec("...")
+      - pattern-not: shell_exec('...')
+      - pattern-not: shell_exec($var)
+      - metavariable-pattern:
+          metavariable: $arg
+          patterns:
+            - pattern: shell_exec($arg)
+            - pattern-either:
+                - pattern: $arg
+    message: "shell_exec() dengan user input - potential RCE (review manual)"
     languages: [php]
     severity: WARNING
     metadata:
       cwe: "CWE-78: OS Command Injection"
-
-  - id: php-rce-shell-exec
-    patterns:
-      - pattern: shell_exec(...)
-      - pattern-not: shell_exec(escapeshellarg(...))
-      - pattern-not: shell_exec('...' . escapeshellarg(...) . '...')
-    message: "shell_exec() detected WITHOUT escapeshellarg - potential RCE"
-    languages: [php]
-    severity: WARNING

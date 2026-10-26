@@ -2,6 +2,7 @@
 .bona/
 vendor/
 forensic-report.json
+audit-*.txt
 
 # PHP & Composer
 composer.lock

@@ -11,7 +11,8 @@ class SecurityChecker extends AbstractChecker {
         $files = FileSystem::scanDir($this->config->getTargetDir(), ['php'], ['vendor', 'node_modules', '.git']);
         $rules = [
             'SQLi'     => '/\b(SELECT|INSERT|UPDATE|DELETE)\b.*?\$_(GET|POST|REQUEST|COOKIE)/i',
-            'XSS'      => '/echo\s+(?!.*?(?:htmlspecialchars|e\(|urlencode|intval|strip_tags|filter_input)).*?\$_(GET|POST|REQUEST|COOKIE)/i',
+            // Regex XSS: Hindari jika ada fungsi escape, ATAU jika $_GET hanya dipakai untuk perbandingan (==, ===)
+            'XSS'      => '/echo\s+(?!.*?(?:htmlspecialchars|e\(|urlencode|intval|strip_tags|filter_input)).*?(?<!==)(?<!===)\$_(GET|POST|REQUEST|COOKIE)/i',
             'RCE'      => '/(?<!->)\b(system|exec|shell_exec|passthru|popen|proc_open|eval)\s*\(/i',
             'LFI'      => '/(include|require)(_once)?\s*\(?\s*\$_(GET|POST|REQUEST|COOKIE)/i',
             'WeakHash' => '/\b(md5|sha1)\s*\(\s*\$[a-zA-Z_]*(password|pass|pwd|secret)/i',
@@ -25,6 +26,9 @@ class SecurityChecker extends AbstractChecker {
             foreach (explode("\n", $content) as $lineNum => $line) {
                 $trimmed = ltrim($line);
                 if (str_starts_with($trimmed, '//') || str_starts_with($trimmed, '*')) continue;
+                
+                // Skip perbandingan string aman seperti $_GET['msg'] === 'marked'
+                if (preg_match('/\$_(GET|POST|REQUEST)\[.*?\]\s*(?:===|==|!==|!=)\s*["\']/i', $line)) continue;
                 
                 foreach ($rules as $name => $regex) {
                     if (preg_match($regex, $line)) {

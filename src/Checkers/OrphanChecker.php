@@ -8,15 +8,13 @@ class OrphanChecker extends AbstractChecker {
     public function getName(): string { return 'Orphan Detection'; }
 
     public function run(): array {
-        // Exclude folder yang memang berisi entry point (diakses via URL/CLI)
         $excludeDirs = [
             'vendor', 'node_modules', '.git', 'tests', 'storage', 'cache', 'tmp', '.bona',
-            'admin', 'api', 'cron', 'debug', 'scripts', 'migrations' // <-- TAMBAHKAN INI
+            'admin', 'api', 'cron', 'debug', 'scripts', 'migrations',
+            'templates', 'views' // <-- Ditambahkan: Folder view biasanya di-load secara dinamis
         ];
         
         $files = FileSystem::scanDir($this->config->getTargetDir(), ['php'], $excludeDirs);
-        
-        // Entry point umum di root
         $entryPoints = ['index.php', 'public/index.php', 'app.php', 'router.php', 'install.php', 'forgot-password.php', 'reset-password.php', 'preview.php'];
         $entryAbs = array_map(fn($e) => realpath($this->config->getTargetDir() . '/' . $e) ?: $this->config->getTargetDir() . '/' . $e, $entryPoints);
 
@@ -25,11 +23,8 @@ class OrphanChecker extends AbstractChecker {
         $dc = new DependencyChecker($this->config);
         
         foreach ($files as $file) {
-            $content = @file_get_contents($file);
-            if ($content === false) continue;
-            $tokens = @token_get_all($content);
-            if (!$tokens) continue;
-            
+            $content = @file_get_contents($file); if ($content === false) continue;
+            $tokens = @token_get_all($content); if (!$tokens) continue;
             $i = 0; $n = count($tokens);
             while ($i < $n) {
                 $t = $tokens[$i];
@@ -48,7 +43,6 @@ class OrphanChecker extends AbstractChecker {
             if (in_array($f, $entryAbs, true)) continue;
             if (empty($reverseGraph[$f])) {
                 $c = @file_get_contents($f);
-                // Abaikan jika file berisi Class/Interface (kemungkinan Composer Autoload)
                 if ($c && preg_match('/\b(class|interface|trait)\s+\w+/i', $c)) continue;
                 $orphans[] = substr($f, strlen($this->config->getTargetDir()) + 1);
             }

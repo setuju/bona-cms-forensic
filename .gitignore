@@ -1,12 +1,13 @@
-# Bona Forensic
+# Bona Forensic - Outputs (SANGAT PENTING)
 .bona/
-vendor/
-forensic-report.json
-audit-*.txt
-
-# PHP & Composer
-composer.lock
 *.log
+audit-*.txt
+forensic-report.json
+*.mmd
+
+# Dependencies
+vendor/
+composer.lock
 
 # OS & IDE
 .DS_Store

@@ -10,9 +10,6 @@
 # │  License   : Proprietary — all rights reserved                       │
 # └──────────────────────────────────────────────────────────────────────┘
 
-includes:
-    - vendor/jbelien/phpstan-sarif-formatter/extension.neon
-
 parameters:
     level: 6
     paths:
@@ -31,4 +28,12 @@ parameters:
         - identifier: missingType.parameter
         - '#Parameter .* of function preg_match expects string, string\|false given#'
         - '#Parameter .* of function json_decode expects string, string\|false given#'
-        - '#Call to preg_quote\(\) is missing delimiter#'
+
+# SARIF formatter registration (per official README)
+services:
+    errorFormatter.sarif:
+        class: PHPStanSarifErrorFormatter\SarifErrorFormatter
+        arguments:
+            relativePathHelper: @simpleRelativePathHelper
+            currentWorkingDirectory: %currentWorkingDirectory%
+            pretty: true

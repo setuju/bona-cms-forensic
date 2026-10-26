@@ -6,49 +6,51 @@ class PhpUnitChecker extends AbstractChecker {
     public function getName(): string { return 'PHPUnit Test Suite'; }
 
     public function run(): array {
-        $toolPhpunit = $this->config->getToolDir() . '/vendor/bin/phpunit';
-        $targetPhpunit = $this->config->getTargetDir() . '/vendor/bin/phpunit';
-
-        if (file_exists($toolPhpunit)) {
-            return $this->runPhpunit($toolPhpunit, 'Tool (bona-cms-forensic)');
+        // Cek apakah target memiliki konfigurasi PHPUnit
+        $configCandidates = ['phpunit.xml', 'phpunit.xml.dist', 'phpunit.dist.xml'];
+        $hasConfig = false;
+        foreach ($configCandidates as $cfg) {
+            if (file_exists($this->config->getTargetDir() . '/' . $cfg)) { $hasConfig = true; break; }
         }
-        if (file_exists($targetPhpunit)) {
-            return $this->runPhpunit($targetPhpunit, 'Target (project)');
-        }
-        $global = trim(shell_exec('which phpunit 2>/dev/null') ?: '');
-        if (!empty($global)) {
-            return $this->runPhpunit($global, 'Global (system)');
-        }
-        $this->addResult('SKIP', 'PHPUnit tidak ditemukan. Install di tool: composer require --dev phpunit/phpunit');
-        return $this->results;
-    }
-
-    private function runPhpunit(string $phpunit, string $source): array {
-        $this->addResult('INFO', "PHPUnit ditemukan di {$source}: {$phpunit}");
-
-        $testDirs = ['tests', 'test', 'Tests'];
-        $hasTests = false;
-        foreach ($testDirs as $dir) {
-            if (is_dir($this->config->getTargetDir() . '/' . $dir)) { $hasTests = true; break; }
-        }
-        if (!$hasTests) {
-            $this->addResult('SKIP', 'Target tidak memiliki folder tests/. Tidak ada test yang dijalankan.');
+        if (!$hasConfig) {
+            $this->addResult('SKIP', 'Target tidak memiliki phpunit.xml. Skipping (tidak ada test configuration).');
             return $this->results;
         }
 
+        $toolPhpunit = $this->config->getToolDir() . '/vendor/bin/phpunit';
+        $targetPhpunit = $this->config->getTargetDir() . '/vendor/bin/phpunit';
+        $phpunit = null; $source = '';
+
+        if (file_exists($targetPhpunit)) { $phpunit = $targetPhpunit; $source = 'Target'; }
+        elseif (file_exists($toolPhpunit)) { $phpunit = $toolPhpunit; $source = 'Tool'; }
+        else {
+            $global = trim(shell_exec('which phpunit 2>/dev/null') ?: '');
+            if (!empty($global)) { $phpunit = $global; $source = 'Global'; }
+        }
+
+        if ($phpunit === null) {
+            $this->addResult('SKIP', 'PHPUnit binary tidak ditemukan.');
+            return $this->results;
+        }
+        $this->addResult('INFO', "PHPUnit ({$source}): {$phpunit}");
+
+        // Jalankan dalam mode read-only (hanya baca, --log-junit ke /tmp)
         $junit = sys_get_temp_dir() . '/bona-phpunit-' . uniqid() . '.xml';
-        $cmd = 'cd ' . escapeshellarg($this->config->getTargetDir()) . ' && ' . escapeshellarg($phpunit) . ' --log-junit ' . escapeshellarg($junit) . ' --no-coverage 2>&1';
+        $cmd = 'cd ' . escapeshellarg($this->config->getTargetDir()) 
+             . ' && ' . escapeshellarg($phpunit) 
+             . ' --log-junit ' . escapeshellarg($junit) 
+             . ' --no-coverage 2>&1';
         $output = shell_exec($cmd);
 
         if (!file_exists($junit)) {
-            $this->addResult('WARN', 'PHPUnit dijalankan tapi tidak menghasilkan JUnit XML. Config phpunit.xml mungkin tidak ada di target.');
+            $this->addResult('WARN', 'PHPUnit tidak menghasilkan JUnit XML. Output: ' . substr($output ?? '', 0, 200));
             return $this->results;
         }
 
         $xml = @simplexml_load_file($junit);
         @unlink($junit);
         if (!$xml) {
-            $this->addResult('WARN', 'Gagal parse JUnit XML.');
+            $this->addResult('WARN', 'Gagal parse JUnit XML (kemungkinan error konfigurasi).');
             return $this->results;
         }
 
@@ -56,13 +58,13 @@ class PhpUnitChecker extends AbstractChecker {
         $failures = (int)($xml['failures'] ?? 0);
         $errors = (int)($xml['errors'] ?? 0);
 
-        $this->addResult('INFO', "PHPUnit Result: {$tests} tests, {$failures} failures, {$errors} errors");
+        $this->addResult('INFO', "PHPUnit: {$tests} tests, {$failures} failures, {$errors} errors");
         if ($failures > 0 || $errors > 0) {
-            $this->addResult('FAIL', "PHPUnit gagal: {$failures} failures, {$errors} errors.", ['list' => array_slice(explode("\n", trim($output ?? '')), -5)]);
+            $this->addResult('FAIL', "PHPUnit gagal: {$failures} failures, {$errors} errors.");
         } elseif ($tests === 0) {
-            $this->addResult('WARN', 'PHPUnit tidak menemukan test.');
+            $this->addResult('WARN', 'PHPUnit tidak menemukan test (empty suite).');
         } else {
-            $this->addResult('PASS', "Semua {$tests} test PHPUnit lulus.");
+            $this->addResult('PASS', "Semua {$tests} test lulus.");
         }
         return $this->results;
     }

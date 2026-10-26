@@ -34,6 +34,32 @@ composer install
 chmod +x bin/forensic
 ```
 
+
+## 🛡️ Read-Only Guarantee (Jaminan 100% Read-Only)
+
+Bona Forensic **TIDAK PERNAH** mengubah file di folder target yang diaudit.
+
+**Yang DIMODIFIKASI** (hanya di folder tool `bona-cms-forensic/`):
+- `.bona/logs/*.txt` — log temuan
+- `.bona/snapshots/*.json` — snapshot untuk diff
+- `.bona/dependency-graph*.mmd` — file Mermaid
+- `vendor/` — dependency tool sendiri
+
+**Yang TIDAK DIMODIFIKASI** (folder target):
+- Semua file `.php`, `.phtml`, `.js`, `.css`, `.html`, `.json`, `.yaml`, `.md`, `.txt`, `.sql`
+- Tidak ada `composer install`, `composer require`, atau `npm install` di target
+- Tidak ada penulisan ke database target (hanya `SELECT` untuk read-only analysis)
+
+**Bukti Teknis**: Setiap audit men-*hash* (MD5) seluruh file target SEBELUM dan SESUDAH scan. Jika ada 1 byte pun yang berubah, audit akan menampilkan `CRITICAL: Target directory BERUBAH!` dan exit code menjadi `FAIL`.
+
+## 🔒 Local-Only Guarantee (Jaminan 100% Lokal)
+
+- **Tidak ada telemetry** ke server eksternal
+- **Tidak ada API call** ke layanan pihak ketiga (kecuali opsional: Composer audit untuk CVE)
+- **Tidak ada upload file** ke cloud
+- Semua analisis dilakukan **offline** di mesin lokal
+
+
 ## 🎯 Cara Penggunaan
 
 ```bash

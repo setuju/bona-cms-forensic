@@ -11,11 +11,17 @@ class ClsChecker extends AbstractChecker {
         $issues = [];
         foreach ($templates as $file) {
             $c = @file_get_contents($file); if ($c === false) continue;
-            preg_match_all('/<img\b[^>]*>/i', $c, $m);
-            foreach ($m[0] as $img) {
-                if (!preg_match('/\bwidth\s*=/i', $img) || !preg_match('/\bheight\s*=/i', $img)) {
-                    $rel = substr($file, strlen($this->config->getTargetDir()) + 1);
-                    $issues[] = "{$rel}: <img> without width/height";
+            $rel = substr($file, strlen($this->config->getTargetDir()) + 1);
+            
+            preg_match_all('/<img\b[^>]*>/i', $c, $m, PREG_OFFSET_CAPTURE);
+            foreach ($m[0] as $match) {
+                $imgTag = $match[0];
+                $offset = $match[1];
+                $lineNum = substr_count(substr($c, 0, $offset), "\n") + 1;
+                
+                if (!preg_match('/\bwidth\s*=/i', $imgTag) || !preg_match('/\bheight\s*=/i', $imgTag)) {
+                    $snippet = trim(substr($imgTag, 0, 80));
+                    $issues[] = sprintf('%s:%d | %s', $rel, $lineNum, $snippet);
                 }
             }
         }

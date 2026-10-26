@@ -15,28 +15,29 @@ class MaintenanceChecker extends AbstractChecker {
         foreach ($files as $file) {
             $out = []; $ret = 0;
             @exec('php -l ' . escapeshellarg($file) . ' 2>&1', $out, $ret);
-            if ($ret !== 0) { $failed++; $errors[] = implode(" ", $out); }
+            if ($ret !== 0) { $failed++; $rel = substr($file, strlen($this->config->getTargetDir()) + 1); $errors[] = "{$rel} | " . implode(" ", $out); }
         }
         if ($failed === 0) { $this->addResult('PASS', "All " . count($files) . " files pass syntax check."); }
         else { $this->addResult('FAIL', "{$failed} files with syntax errors.", ['list' => $errors]); }
 
         // 2. Tech Debt
         $markers = ['TODO', 'FIXME', 'HACK', 'XXX', 'BUG'];
-        $total = 0; $details = [];
+        $details = [];
         foreach ($files as $f) {
             $c = @file_get_contents($f); if ($c === false) continue;
+            $rel = substr($f, strlen($this->config->getTargetDir()) + 1);
             foreach (explode("\n", $c) as $lineNum => $line) {
                 foreach ($markers as $m) {
                     if (preg_match('/\b' . $m . '\b/i', $line)) {
-                        $rel = substr($f, strlen($this->config->getTargetDir()) + 1);
-                        $details[] = "{$rel}:{$lineNum}: " . trim(substr($line, 0, 80));
-                        $total++;
+                        $snippet = trim(substr($line, 0, 100));
+                        $details[] = sprintf('[%s] %s:%d | %s', $m, $rel, $lineNum + 1, $snippet);
+                        break;
                     }
                 }
             }
         }
-        if ($total > 0) {
-            $this->addResult('WARN', "{$total} technical debt markers found.", ['list' => $details]);
+        if (!empty($details)) {
+            $this->addResult('WARN', count($details) . " technical debt markers found.", ['list' => $details]);
             FileSystem::writeLog($this->config->getLogDir(), 'tech-debt', $details);
         } else { $this->addResult('PASS', 'No technical debt markers.'); }
 

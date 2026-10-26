@@ -31,7 +31,9 @@ if (!$jsonMode) {
     echo "\n\033[1;35m╔══════════════════════════════════════════════════════════════════════════╗\n";
     echo "║     BONA FORENSIC — Enterprise Audit (Modular Architecture)              ║\n";
     echo "╚══════════════════════════════════════════════════════════════════════════╝\033[0m\n";
-    echo "  Target : {$target}\n\n";
+    echo "  Target : {$target}\n";
+    if ($showFindings) echo "  Mode   : \033[1;33mFULL FINDINGS (Semua temuan ditampilkan)\033[0m\n";
+    echo "\n";
 }
 
 $checkers = [
@@ -68,25 +70,27 @@ foreach ($checkers as $checker) {
             };
             echo "  {$icon} {$res['message']}\n";
             
-            if ($res['status'] === 'FAIL' || $res['status'] === 'WARN') {
-                if (!empty($res['details']['list']) && ($showFindings || $res['status'] === 'FAIL')) {
-                    foreach (array_slice($res['details']['list'], 0, 5) as $item) {
-                        echo "      \033[2m- {$item}\033[0m\n";
-                    }
+            if (in_array($res['status'], ['FAIL', 'WARN']) && !empty($res['details']['list'])) {
+                $list = $res['details']['list'];
+                $items = $showFindings ? $list : array_slice($list, 0, 5);
+                foreach ($items as $item) {
+                    echo "      \033[2m- {$item}\033[0m\n";
+                }
+                if (!$showFindings && count($list) > 5) {
+                    echo "      \033[2m... dan " . (count($list) - 5) . " lainnya (gunakan --show-findings untuk melihat semua)\033[0m\n";
                 }
             }
         }
         echo "\n";
     }
     
-    // Hitung total untuk summary & snapshot
     foreach ($results as $res) {
         if ($res['status'] === 'FAIL') $totalFails++;
         if ($res['status'] === 'WARN') $totalWarns++;
     }
 }
 
-// Jalankan Snapshot Checker setelah semua checker selesai
+// Snapshot & Diff
 $snapshotChecker = new SnapshotChecker($config, $allResults);
 $snapshotResults = $snapshotChecker->run();
 $allResults['Snapshot & Diff'] = $snapshotResults;
@@ -100,7 +104,6 @@ if (!$jsonMode) {
     echo "\n";
 }
 
-// Output JSON atau Console
 if ($jsonMode) {
     $output = [
         'meta' => ['target' => $target, 'timestamp' => date('c')],

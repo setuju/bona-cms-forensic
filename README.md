@@ -1,4 +1,4 @@
-# 🔬 Bona Forensic — Unified CMS Audit Script
+# 🔬 Bona Forensic — Enterprise CMS Audit Tool
 
 <!--
 /**
@@ -12,111 +12,62 @@
  * │  Website   : https://saturumah.net                                   │
  * │  Created   : 2026-10-26                                              │
  * │  License   : Proprietary — all rights reserved                       │
- * │                                                                      │
- * │  This header is the file contract. If it is missing, the file is     │
- * │  vendored, generated, or outside the project boundary.               │
  * └──────────────────────────────────────────────────────────────────────┘
- *
- * @author    Jack <Jack[at]SatuRumah[dot]Net>
- * @created   2026-10-26
- * @package   SatuRumah\Forensic
- * @license   Proprietary
  */
 -->
 
-> **Single-file PHP forensic audit tool** for Bona CMS (or any PHP-based CMS).
-> 27 sections covering statistics, dependency mapping, security (OWASP Top 10),
-> SEO, Core Web Vitals, code quality, and CVE detection.
-> 
-> **All checks are READ-ONLY.** No destructive actions. No active exploitation.
+> **Modular Forensic Audit Tool** untuk Bona CMS (atau CMS berbasis PHP lainnya).
+> Menggunakan arsitektur PSR-4, Dependency Injection, dan 11 modular checkers.
+> Semua pengecekan bersifat **Read-Only** (tidak ada aksi destruktif).
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Persyaratan (Requirements)
+- PHP 8.1+ (dengan ekstensi `curl` dan `tokenizer`)
+- Composer
+
+## 📦 Instalasi
+```bash
+git clone https://github.com/setuju/bona-cms-forensic.git
+cd bona-cms-forensic
+composer install
+chmod +x bin/forensic
+```
+
+## 🎯 Cara Penggunaan
 
 ```bash
-# Full audit (human-readable)
-php scripts/bona-forensic.php
+# Audit penuh (Human-readable)
+./bin/forensic --root=/path/ke/project-cms
 
-# CI mode (exit 1 if critical issues found)
-php scripts/bona-forensic.php --ci
+# Audit dengan menampilkan detail temuan (snippet/log)
+./bin/forensic --root=/path/ke/project-cms --show-findings
 
-# JSON output (for integration)
-php scripts/bona-forensic.php --json > report.json
-
-# Quick mode (skip tokenizer, fastest)
-php scripts/bona-forensic.php --quick
-
-# Orphans only
-php scripts/bona-forensic.php --orphans-only
-
-# Mermaid diagram
-php scripts/bona-forensic.php --mermaid
+# CI/CD Mode (Exit 1 jika ada FAIL)
+./bin/forensic --root=. --ci
 ```
 
-## 🔍 27 Audit Sections
+## 🔍 Modul Checker (Enterprise Architecture)
 
-1. **Code Statistics** (LOC, Mean, Outliers)
-2. **Log Analysis** (Error detection)
-3. **Reliability** (Unit tests presence)
-4. **Asset Performance** (Large files detection)
-5. **Security Baseline** (.env exposure, hardcoded credentials)
-6. **Database Health** (Schema, migrations)
-7. **Dependency Graph** (Coupling analysis)
-8. **Orphan Detection** (Unused files)
-9. **Broken Links** (Missing includes)
-10. **Snapshot & Diff** (Changes since last run)
-11. **Circular Dependencies** (DFS cycle detection)
-12. **Centrality / Hotspot** (God files detection)
-13. **Import Depth** (BFS from entry points)
-14. **Technical Debt** (TODO, FIXME, HACK)
-15. **Structural Overview** (Class/Interface count)
-16. **PHP Lint** (Syntax verification)
-17. **Security Heuristics** (OWASP Top 10: SQLi, XSS, RCE, LFI/RFI, CSRF, XXE, SSRF)
-18. **PHP Config Audit** (php.ini security flags)
-19. **HTTP Security Headers** (CSP, HSTS, X-Frame-Options)
-20. **SEO Static Analysis** (Meta tags, JSON-LD)
-21. **CLS Prevention** (Missing img/iframe dimensions)
-22. **Page Speed Hints** (Blocking scripts, CSS)
-23. **CVE & Dependency Audit** (composer audit)
-24. **CMS Security Features** (MFA, RBAC, Password Hashing)
-25. **Cookie & Session Security** (HttpOnly, Secure, SameSite)
-26. **File Upload Security** (.htaccess protection, MIME validation)
-27. **API & CORS Security** (Wildcard CORS, JWT, Hardcoded keys)
+1. **StatsChecker**: Analisis LOC, Mean, Outlier.
+2. **MaintenanceChecker**: PHP Lint, Tech Debt (TODO/FIXME), Struktur (Class/Function).
+3. **DependencyChecker**: Peta dependensi & *Macro Mermaid Graph* (Folder-to-Folder).
+4. **CircularDependencyChecker**: Deteksi siklus saling ketergantungan (DFS).
+5. **OrphanChecker**: Deteksi file mati/yatim (tidak dipanggil).
+6. **SecurityChecker**: Heuristik OWASP Top 10 (XSS, SQLi, RCE, LFI).
+7. **AdvancedSecurityChecker**: Runtime Headers, Cookie, File Upload, CORS.
+8. **ConfigChecker**: `php.ini` audit, CVE (Composer), Fitur CMS (MFA, CSRF).
+9. **LogChecker**: Analisis file `error.log`.
+10. **SeoChecker**: Validasi `<title>`, `<meta>`, dll.
+11. **ClsChecker**: Pencegahan Layout Shift (dimensi `<img>`).
 
-## 🔗 CI/CD Integration (GitHub Actions)
+## 📊 Output & Log
+- **Terminal**: Laporan berwarna (PASS, WARN, FAIL).
+- **Mermaid**: File `.bona/dependency-graph.mmd` (bisa dibuka di [Mermaid Live Editor](https://mermaid.live/)).
+- **Logs**: File `.bona/logs/log-*.txt` berisi detail temuan (Orphan, Tech Debt, SEO, dll).
 
-```yaml
-name: Bona Forensic Audit
-on: [push, pull_request]
-jobs:
-  forensic:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          tools: composer
-      - run: php scripts/bona-forensic.php --ci
-```
+## 🛡️ CI/CD (GitHub Actions)
+Workflow `.github/workflows/bona-forensic.yml` sudah dikonfigurasi untuk menjalankan audit otomatis pada setiap Pull Request.
 
-## ⚠️ Limitations & Notes
-
-- **Read-only**: No files are modified. No exploits are executed.
-- **Heuristics**: Regex-based detection has false positives. Manual review required.
-- **SAST**: For deep analysis, use Semgrep/PHPStan alongside this script.
-- **CVE**: `composer audit` requires internet. Works fine in CI.
-- **SEO/CLS**: Static template checks only. Use Lighthouse CI for actual rendering.
-
-## 🛡️ Defense in Depth
-
-Bona Forensic is **Layer 1** (Early Warning).
-- Layer 1: Bona Forensic (fast, local, 27 sections)
-- Layer 2: Semgrep + Snyk + PHPStan (deep SAST + CVE)
-- Layer 3: Lighthouse CI (real rendering, Core Web Vitals)
-- Layer 4: Sentry/Bugsnag (runtime error monitoring)
-
-## 📄 License
-
+## 📄 Lisensi
 Proprietary — all rights reserved. © 2026 SatuRumah.Net

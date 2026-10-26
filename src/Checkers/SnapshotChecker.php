@@ -34,7 +34,7 @@ class SnapshotChecker extends AbstractChecker {
     public function __construct($config, array $currentResults) {
         parent::__construct($config);
         $this->currentResults = $currentResults;
-        $this->manager = new SnapshotManager($config->getToolDir());
+        $this->manager = new SnapshotManager($config->getToolDir(), $config->getTargetDir());
     }
 
     public function getName(): string { return 'Snapshot & Diff'; }

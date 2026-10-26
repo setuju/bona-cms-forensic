@@ -61,7 +61,8 @@ class SecurityChecker extends AbstractChecker {
                     $selectStar[] = sprintf('%s:%d | %s', $rel, $lineNum + 1, trim(substr($line, 0, 100)));
                 }
                 
-                if (preg_match('/->query\s*\(.*?["\'].*?\$[a-zA-Z_]/i', $line) && !preg_match('/prepare|bindParam|bindValue/i', $line)) {
+                $isIntrospection = preg_match('/\b(SHOW\s+(TABLES|COLUMNS|INDEX|KEYS|DATABASES)|PRAGMA\s+\w+|DESCRIBE\s+\w+|EXPLAIN\s+)/i', $line);
+                if (!$isIntrospection && preg_match('/->query\s*\(.*?["\'].*?\$[a-zA-Z_]/i', $line) && !preg_match('/prepare|bindParam|bindValue/i', $line)) {
                     $unprepared[] = sprintf('%s:%d | %s', $rel, $lineNum + 1, trim(substr($line, 0, 100)));
                 }
             }

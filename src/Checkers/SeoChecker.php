@@ -50,7 +50,8 @@ class SeoChecker extends AbstractChecker {
             $this->config->getTargetDir(),
             ['php', 'html', 'phtml'],
             ['vendor', 'node_modules', '.git', 'includes', 'system', 'lib', 'core',
-             'mailers', 'cron', 'api', 'migrations', 'storage', 'cache', 'tests', 'debug']
+             'mailers', 'cron', 'api', 'migrations', 'storage', 'cache', 'tests', 'debug',
+             'src', 'bin', 'rules']
         );
 
         $stats = ['public' => 0, 'admin' => 0, 'auth' => 0];

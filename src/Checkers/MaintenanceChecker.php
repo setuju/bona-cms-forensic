@@ -48,6 +48,8 @@ class MaintenanceChecker extends AbstractChecker {
         foreach ($files as $f) {
             $c = @file_get_contents($f); if ($c === false) continue;
             $rel = substr($f, strlen($this->config->getTargetDir()) + 1);
+            // Skip self-source dan file yang berisi array marker (false positive)
+            $isSelfSource = (basename($f) === 'MaintenanceChecker.php') || preg_match("/\['TODO'/", $c);
             foreach (explode("\n", $c) as $lineNum => $line) {
                 foreach ($markers as $m) {
                     // Gunakan word boundary dan pastikan bukan bagian dari string statis yang umum

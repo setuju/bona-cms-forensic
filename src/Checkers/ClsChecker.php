@@ -29,7 +29,7 @@ use SatuRumah\Forensic\Core\FileSystem;
 class ClsChecker extends AbstractChecker {
     public function getName(): string { return 'CLS Prevention'; }
     public function run(): array {
-        $templates = FileSystem::scanDir($this->config->getTargetDir(), ['php', 'html', 'phtml'], ['vendor', 'node_modules', '.git']);
+        $templates = FileSystem::scanDir($this->config->getTargetDir(), ['php', 'html', 'phtml'], ['vendor', 'node_modules', '.git', 'src', 'bin', 'rules']);
         $issues = [];
         foreach ($templates as $file) {
             $c = @file_get_contents($file); if ($c === false) continue;

@@ -36,7 +36,10 @@ rules:
       cwe: "CWE-78: OS Command Injection"
 
   - id: php-rce-shell-exec
-    pattern: shell_exec(...)
-    message: "shell_exec() detected - potential RCE"
+    patterns:
+      - pattern: shell_exec(...)
+      - pattern-not: shell_exec(escapeshellarg(...))
+      - pattern-not: shell_exec('...' . escapeshellarg(...) . '...')
+    message: "shell_exec() detected WITHOUT escapeshellarg - potential RCE"
     languages: [php]
     severity: WARNING

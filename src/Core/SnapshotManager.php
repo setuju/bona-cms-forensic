@@ -27,8 +27,9 @@ namespace SatuRumah\Forensic\Core;
 class SnapshotManager {
     private string $snapshotFile;
 
-    public function __construct(string $toolDir) {
-        $this->snapshotFile = $toolDir . '/.bona/snapshots/latest.json';
+    public function __construct(string $toolDir, ?string $targetDir = null) {
+        $targetHash = md5($targetDir ?? 'default');
+        $this->snapshotFile = $toolDir . '/.bona/snapshots/latest-' . substr($targetHash, 0, 8) . '.json';
         $dir = dirname($this->snapshotFile);
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
     }

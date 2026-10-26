@@ -50,7 +50,7 @@ class ConfigChecker extends AbstractChecker {
         // 3. CMS Security Features (Basic Regex Check)
         $features = ['password_hash' => '/password_hash\s*\(/i', 'CSRF Token' => '/(csrf.?token|xsrf)/i', 'MFA/2FA' => '/(mfa|2fa|totp|two.?factor)/i'];
         $found = 0;
-        foreach (FileSystem::scanDir($this->config->getTargetDir(), ['php'], ['vendor']) as $file) {
+        foreach (FileSystem::scanDir($this->config->getTargetDir(), ['php'], ['vendor', 'src', 'bin', 'rules']) as $file) {
             $c = @file_get_contents($file); if (!$c) continue;
             foreach ($features as $name => $regex) {
                 if (preg_match($regex, $c)) { $this->addResult('PASS', "Detected CMS feature: {$name}"); $found++; unset($features[$name]); }

@@ -8,13 +8,21 @@ class OrphanChecker extends AbstractChecker {
     public function getName(): string { return 'Orphan Detection'; }
 
     public function run(): array {
-        $excludeDirs = ['vendor', 'node_modules', '.git', 'tests', 'storage', 'cache', 'tmp', '.bona', 'scripts', 'migrations'];
+        // Exclude folder yang memang berisi entry point (diakses via URL/CLI)
+        $excludeDirs = [
+            'vendor', 'node_modules', '.git', 'tests', 'storage', 'cache', 'tmp', '.bona',
+            'admin', 'api', 'cron', 'debug', 'scripts', 'migrations' // <-- TAMBAHKAN INI
+        ];
+        
         $files = FileSystem::scanDir($this->config->getTargetDir(), ['php'], $excludeDirs);
-        $entryPoints = ['index.php', 'public/index.php', 'app.php', 'router.php', 'install.php'];
+        
+        // Entry point umum di root
+        $entryPoints = ['index.php', 'public/index.php', 'app.php', 'router.php', 'install.php', 'forgot-password.php', 'reset-password.php', 'preview.php'];
         $entryAbs = array_map(fn($e) => realpath($this->config->getTargetDir() . '/' . $e) ?: $this->config->getTargetDir() . '/' . $e, $entryPoints);
 
         $reverseGraph = [];
         $requireTokens = [T_REQUIRE, T_REQUIRE_ONCE, T_INCLUDE, T_INCLUDE_ONCE];
+        $dc = new DependencyChecker($this->config);
         
         foreach ($files as $file) {
             $content = @file_get_contents($file);
@@ -26,9 +34,9 @@ class OrphanChecker extends AbstractChecker {
             while ($i < $n) {
                 $t = $tokens[$i];
                 if (!is_array($t) || !in_array($t[0], $requireTokens, true)) { $i++; continue; }
-                [$path] = (new DependencyChecker($this->config))->extractPath($tokens, $i, $n);
+                [$path] = $dc->extractPath($tokens, $i, $n);
                 if ($path !== null) {
-                    $resolved = (new DependencyChecker($this->config))->resolvePath($path, $file);
+                    $resolved = $dc->resolvePath($path, $file);
                     if ($resolved !== null && file_exists($resolved)) $reverseGraph[$resolved][] = $file;
                 }
                 while ($i < $n && $tokens[$i] !== ';') $i++; $i++;
@@ -40,17 +48,17 @@ class OrphanChecker extends AbstractChecker {
             if (in_array($f, $entryAbs, true)) continue;
             if (empty($reverseGraph[$f])) {
                 $c = @file_get_contents($f);
+                // Abaikan jika file berisi Class/Interface (kemungkinan Composer Autoload)
                 if ($c && preg_match('/\b(class|interface|trait)\s+\w+/i', $c)) continue;
                 $orphans[] = substr($f, strlen($this->config->getTargetDir()) + 1);
             }
         }
 
         if (empty($orphans)) {
-            $this->addResult('PASS', 'No orphan files detected.');
+            $this->addResult('PASS', 'No orphan files detected in the core logic.');
         } else {
             $this->addResult('WARN', "Found " . count($orphans) . " potential orphan files.", ['list' => $orphans]);
-            $logFile = FileSystem::writeLog($this->config->getLogDir(), 'orphans', $orphans);
-            $this->addResult('INFO', "Orphan list written to log.", ['file' => $logFile]);
+            FileSystem::writeLog($this->config->getLogDir(), 'orphans', $orphans);
         }
         return $this->results;
     }

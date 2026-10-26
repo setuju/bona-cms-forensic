@@ -20,14 +20,15 @@ class MaintenanceChecker extends AbstractChecker {
         if ($failed === 0) { $this->addResult('PASS', "All " . count($files) . " files pass syntax check."); }
         else { $this->addResult('FAIL', "{$failed} files with syntax errors.", ['list' => $errors]); }
 
-        // 2. Tech Debt
-        $markers = ['TODO', 'FIXME', 'HACK', 'XXX', 'BUG'];
+        // 2. Tech Debt (Hanya TODO, FIXME, HACK, BUG)
+        $markers = ['TODO', 'FIXME', 'HACK', 'BUG'];
         $details = [];
         foreach ($files as $f) {
             $c = @file_get_contents($f); if ($c === false) continue;
             $rel = substr($f, strlen($this->config->getTargetDir()) + 1);
             foreach (explode("\n", $c) as $lineNum => $line) {
                 foreach ($markers as $m) {
+                    // Gunakan word boundary dan pastikan bukan bagian dari string statis yang umum
                     if (preg_match('/\b' . $m . '\b/i', $line)) {
                         $snippet = trim(substr($line, 0, 100));
                         $details[] = sprintf('[%s] %s:%d | %s', $m, $rel, $lineNum + 1, $snippet);

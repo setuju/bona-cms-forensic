@@ -1,6 +1,5 @@
-# Bona Forensic - Outputs (SANGAT PENTING)
+# Bona Forensic - Outputs (JANGAN DI-COMMIT)
 .bona/
-*.log
 audit-*.txt
 forensic-report.json
 *.mmd
@@ -8,6 +7,9 @@ forensic-report.json
 # Dependencies
 vendor/
 composer.lock
+
+# Logs
+*.log
 
 # OS & IDE
 .DS_Store

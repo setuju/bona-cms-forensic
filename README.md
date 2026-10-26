@@ -41,7 +41,7 @@
 - [Features](#-features)
 - [Quick Start](#-quick-start)
 - [Requirements](#-requirements)
-- [The 22 Checkers](#-the-18-checkers)
+- [The 22 Checkers](#-the-22-checkers)
 - [CLI Reference](#-cli-reference)
 - [Read-Only Guarantee](#-read-only-guarantee)
 - [CI/CD Integration](#-cicd-integration)
@@ -133,7 +133,7 @@ See **[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)** for the complete list.
 
 ---
 
-## 🔍 The 18 Checkers
+## 🔍 The 22 Checkers
 
 | # | Checker | Focus |
 |---|---|---|
@@ -188,7 +188,7 @@ OPTIONS:
 Bona Forensic **NEVER** modifies the target directory. Proven cryptographically:
 
 1. `IntegrityChecker` computes **MD5** of every target file **before** audit
-2. All 18 checkers run read-only
+2. All 22 checkers run read-only
 3. `IntegrityChecker` re-computes **after** audit
 4. If **any byte differs** → `CRITICAL: Target directory BERUBAH!` (exit 1)
 

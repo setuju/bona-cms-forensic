@@ -48,6 +48,7 @@ use SatuRumah\Forensic\Checkers\IntegrityChecker;
 use SatuRumah\Forensic\Checkers\Php2ShellChecker;
 use SatuRumah\Forensic\Checkers\SemgrepChecker;
 use SatuRumah\Forensic\Checkers\PhpUnitChecker;
+use SatuRumah\Forensic\Checkers\BrokenLinksChecker;
 use SatuRumah\Forensic\Checkers\SmokeTestChecker;
 
 $target = getcwd();
@@ -78,6 +79,7 @@ $checkers = [
     new CircularDependencyChecker($config),
     new ImportDepthChecker($config),
     new CentralityChecker($config),
+    new BrokenLinksChecker($config),
     new OrphanChecker($config),
     new SecurityChecker($config),
     new AdvancedSecurityChecker($config),

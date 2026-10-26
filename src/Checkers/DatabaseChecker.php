@@ -24,6 +24,8 @@
 declare(strict_types=1);
 namespace SatuRumah\Forensic\Checkers;
 
+use SatuRumah\Forensic\Core\FileSystem;
+
 class DatabaseChecker extends AbstractChecker {
     public function getName(): string { return 'Database Health & SQL Injection Surface'; }
 
@@ -38,6 +40,7 @@ class DatabaseChecker extends AbstractChecker {
             $pdo = $this->connect($creds);
             $this->addResult('PASS', 'Database connection successful (READ-ONLY mode).');
             $this->analyzeSchema($pdo, $creds['driver']);
+            $this->analyzeSeoConfig($pdo, $creds['driver']);
         } catch (\Exception $e) {
             $this->addResult('SKIP', 'Connection failed: ' . substr($e->getMessage(), 0, 100));
         }
@@ -117,4 +120,88 @@ class DatabaseChecker extends AbstractChecker {
             if (!empty($dangerousCols)) $this->addResult('INFO', count($dangerousCols) . ' string/text columns (potential XSS/SQLi storage):', ['list' => $dangerousCols]);
         } catch (\Exception $e) { $this->addResult('WARN', 'Schema analysis failed: ' . substr($e->getMessage(), 0, 100)); }
     }
+
+
+    private function analyzeSeoConfig(\PDO $pdo, string $driver): void {
+        try {
+            $tables = ($driver === 'mysql')
+                ? $pdo->query("SHOW TABLES")->fetchAll(\PDO::FETCH_COLUMN)
+                : $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")->fetchAll(\PDO::FETCH_COLUMN);
+
+            $seoSettings = [];
+            $emptySeoSettings = [];
+            $contentSeoGaps = [];
+            $contentSeoOk = 0;
+
+            foreach ($tables as $table) {
+                $cols = ($driver === 'mysql')
+                    ? $pdo->query("SHOW COLUMNS FROM `{$table}`")->fetchAll()
+                    : $pdo->query("PRAGMA table_info(`{$table}`)")->fetchAll();
+                $colNames = array_column($cols, $driver === 'mysql' ? 'Field' : 'name');
+
+                // Tabel settings/config
+                if (preg_match('/(setting|config|option)/i', $table)) {
+                    $keyCol = null; $valCol = null;
+                    foreach ($colNames as $col) {
+                        if (!$keyCol && preg_match('/^(setting_?key|^key$|^name$|^option_?name)$/i', $col)) $keyCol = $col;
+                        if (!$valCol && preg_match('/^(setting_?value|^value$|^val$|^option_?value)$/i', $col)) $valCol = $col;
+                    }
+                    if ($keyCol && $valCol) {
+                        try {
+                            $stmt = $pdo->query("SELECT `{$keyCol}` as k, `{$valCol}` as v FROM `{$table}` WHERE `{$keyCol}` LIKE '%seo%' OR `{$keyCol}` LIKE '%meta%' OR `{$keyCol}` LIKE '%og_%' OR `{$keyCol}` LIKE '%analytics%'");
+                            foreach ($stmt->fetchAll() as $row) {
+                                $key = $row['k'];
+                                $val = trim((string)$row['v']);
+                                if ($val === '') {
+                                    $emptySeoSettings[] = "{$table}.{$key} = (EMPTY)";
+                                } else {
+                                    $seoSettings[] = "{$table}.{$key} = " . substr($val, 0, 50);
+                                }
+                            }
+                        } catch (\Exception $e) {}
+                    }
+                }
+
+                // Tabel konten
+                if (preg_match('/(page|post|monologue|article|content|product|catalog)/i', $table)) {
+                    $seoCols = array_filter($colNames, function($c) {
+                        return preg_match('/(^seo_|^meta_(title|description|image)|^og_|^twitter_|^canonical_)/i', $c);
+                    });
+                    foreach ($seoCols as $field) {
+                        try {
+                            $stmt = $pdo->query("SELECT COUNT(*) as total, SUM(CASE WHEN `{$field}` IS NULL OR `{$field}` = '' THEN 1 ELSE 0 END) as empty_count FROM `{$table}`");
+                            $row = $stmt->fetch();
+                            if ($row && (int)$row['total'] > 0) {
+                                $empty = (int)$row['empty_count'];
+                                $total = (int)$row['total'];
+                                if ($empty > 0) {
+                                    $contentSeoGaps[] = "{$table}.{$field}: {$empty}/{$total} rows kosong";
+                                } else {
+                                    $contentSeoOk++;
+                                }
+                            }
+                        } catch (\Exception $e) {}
+                    }
+                }
+            }
+
+            if (!empty($seoSettings)) {
+                $this->addResult('INFO', 'SEO settings di DB (' . count($seoSettings) . ' items):', ['list' => array_slice($seoSettings, 0, 15)]);
+            } else {
+                $this->addResult('INFO', 'Tidak ada SEO settings ditemukan di tabel settings/config.');
+            }
+            if (!empty($emptySeoSettings)) {
+                $this->addResult('WARN', 'SEO settings KOSONG (' . count($emptySeoSettings) . '):', ['list' => array_slice($emptySeoSettings, 0, 15)]);
+            }
+            if (!empty($contentSeoGaps)) {
+                $this->addResult('WARN', 'Content SEO fields kosong (' . count($contentSeoGaps) . ' kolom):', ['list' => array_slice($contentSeoGaps, 0, 15)]);
+                FileSystem::writeLog($this->config->getLogDir(), 'seo-db-gaps', $contentSeoGaps);
+            } elseif ($contentSeoOk > 0) {
+                $this->addResult('PASS', 'Semua kolom SEO di tabel konten terisi (' . $contentSeoOk . ' kolom OK).');
+            }
+        } catch (\Exception $e) {
+            $this->addResult('SKIP', 'SEO DB audit gagal: ' . substr($e->getMessage(), 0, 100));
+        }
+    }
+
 }

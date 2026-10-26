@@ -42,6 +42,8 @@ use SatuRumah\Forensic\Checkers\SnapshotChecker;
 use SatuRumah\Forensic\Checkers\DatabaseChecker;
 use SatuRumah\Forensic\Checkers\ImportDepthChecker;
 use SatuRumah\Forensic\Checkers\CentralityChecker;
+use SatuRumah\Forensic\Checkers\TtfbChecker;
+use SatuRumah\Forensic\Checkers\A11yChecker;
 use SatuRumah\Forensic\Checkers\IntegrityChecker;
 use SatuRumah\Forensic\Checkers\Php2ShellChecker;
 use SatuRumah\Forensic\Checkers\SemgrepChecker;
@@ -88,6 +90,8 @@ $checkers = [
     new LogChecker($config),
     new SeoChecker($config),
     new ClsChecker($config),
+    new TtfbChecker($config),
+    new A11yChecker($config),
 ];
 
 // Special case: --section=integrity butuh full pipeline (snapshot + run + compare)

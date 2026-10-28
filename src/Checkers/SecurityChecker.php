@@ -91,8 +91,43 @@ class SecurityChecker extends AbstractChecker {
         if (!empty($unprepared)) $this->addResult('FAIL', count($unprepared) . ' queries WITHOUT prepared statements (SQLi risk).', ['list' => $unprepared]);
         else $this->addResult('PASS', 'All queries use prepared statements.');
         
-        if (!empty($findings) || !empty($unprepared)) {
-            FileSystem::writeLog($this->config->getLogDir(), 'security-issues', array_merge($findings, $unprepared));
+        // v2.5.0: CSRF surface check (multi-method: file-level + form-block)
+        $csrfFileIssues = [];
+        $csrfFormIssues = [];
+        foreach ($files as $file) {
+            $content = @file_get_contents($file);
+            if ($content === false) continue;
+            if (!preg_match('/<form\b[^>]*\bmethod\s*=\s*["\']POST["\']/i', $content)) continue;
+            $rel = substr($file, strlen($this->config->getTargetDir()) + 1);
+
+            // Method 1 — file-level: any csrf handling keyword in file?
+            $fileHasCsrf = preg_match('/\bcsrf_field\s*\(|\bcsrf_token\b|\bcsrf_validate\b|name\s*=\s*["\']_token["\']|\bcsrfmiddlewaretoken\b/i', $content);
+            if (!$fileHasCsrf) {
+                $csrfFileIssues[] = $rel;
+                continue;
+            }
+
+            // Method 2 — form-block level: each POST form body references csrf or _token
+            if (preg_match_all('/<form\b[^>]*\bmethod\s*=\s*["\']POST["\'][^>]*>(.*?)<\/form>/is', $content, $forms)) {
+                foreach ($forms[1] as $idx => $body) {
+                    if (!preg_match('/csrf|_token/i', $body)) {
+                        $csrfFormIssues[] = $rel . ' (form #' . ($idx + 1) . ')';
+                    }
+                }
+            }
+        }
+
+        if (!empty($csrfFileIssues)) {
+            $this->addResult('WARN', count($csrfFileIssues) . ' file(s) with POST form but no CSRF token (file-level).', ['list' => array_slice($csrfFileIssues, 0, 20)]);
+        } else {
+            $this->addResult('PASS', 'All POST-form files contain CSRF token handling.');
+        }
+        if (!empty($csrfFormIssues)) {
+            $this->addResult('WARN', count($csrfFormIssues) . ' form(s) without CSRF token in body.', ['list' => array_slice($csrfFormIssues, 0, 20)]);
+        }
+
+        if (!empty($findings) || !empty($unprepared) || !empty($csrfFileIssues) || !empty($csrfFormIssues)) {
+            FileSystem::writeLog($this->config->getLogDir(), 'security-issues', array_merge($findings, $unprepared, $csrfFileIssues, $csrfFormIssues));
         }
         return $this->results;
     }

@@ -74,12 +74,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Superglobal-only sinks (`$_GET`/`$_POST`/`$_REQUEST`/`$_COOKIE`)
     to avoid FP on variable-based usage
 
-### Deferred
-- **CSRF rule** — deferred to v2.4 (AST-based dedicated checker).
-  Initial line-based regex produced 61 false positives on Bona-CMS-Dev-X
-  (every POST form flagged regardless of token presence).
-  `AdvancedSecurityChecker` provides runtime CSRF surface checks
-  in the meantime.
+### Added (CSRF — v2.5.0 completion)
+- **CSRF surface check** — implemented in `SecurityChecker` (multi-method)
+  - **Method 1 (file-level)**: file has `<form method="POST">` but no CSRF keyword (`csrf_field`/`csrf_token`/`csrf_validate`/`_token`/`csrfmiddlewaretoken`) → WARN
+  - **Method 2 (form-block)**: each POST form body must reference `csrf` or `_token` → WARN per form
+  - Both methods verified 0 FP on clean Bona-CMS-Dev-X (29 files with POST forms, all have CSRF)
+  - Break-test: synthetic file with POST form + no CSRF → correctly detected as WARN
+  - Line-based form-to-handler trace available for future enhancement (v2.5.1)
+
+### Not implemented (documented)
+- **Semgrep CSRF rule** — attempted multiple approaches (pattern-regex, metavariable-pattern, metavariable-regex)
+  - Limitation: `languages: [generic]` treats PHP+HTML as opaque `INLINE_HTML` blob, not parsed structure
+  - Cannot inspect "form body contains csrf field" via Semgrep YAML
+  - PHP-side check in `SecurityChecker` is the correct home (structural, per-file, contextual)
 
 ## [v2.2.0.1] - 2026-10-28
 

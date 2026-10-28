@@ -45,7 +45,8 @@ class SecurityChecker extends AbstractChecker {
             $content = @file_get_contents($file); if (!$content) continue;
             $rel = substr($file, strlen($this->config->getTargetDir()) + 1);
             // Skip file audit internal (DatabaseChecker memang query metadata DB)
-            $isInternalAuditFile = (basename($file) === 'DatabaseChecker.php');
+            $isInternalAuditFile = (basename($file) === 'DatabaseChecker.php')
+            || (basename($file) === 'DbGrowthChecker.php');
             if ($isInternalAuditFile) continue;
             
             // v2.2.5: match() whitelist detection

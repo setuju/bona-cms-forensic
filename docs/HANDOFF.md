@@ -33,7 +33,7 @@
 |---|---|
 | Self-audit | 0 FAIL, 2 WARN (session.upload_progress + test gap — both legit) |
 | PHPStan L6 | 0 errors |
-| Checkers | 27 concrete (22 primary + 5 utility: Integrity, Snapshot, Ttfb, A11y, Framework) |
+| Checkers | 29 concrete (22 primary + 7 utility: Integrity, Snapshot, Ttfb, A11y, Framework, DbGrowth, Coverage) |
 | Semgrep rules | 9 + CSRF check in SecurityChecker (v2.5.0) |
 | TtfbChecker | Real baseline-backed TTFB tracking |
 | A11yChecker | Real WCAG 2.1 AA (root + deep crawl v2.2.0.2) |

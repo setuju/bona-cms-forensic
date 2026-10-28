@@ -26,6 +26,30 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.3.0-fix] - 2026-10-28
+
+### Fixed
+- **SecurityChecker false positive** on `DbGrowthChecker.php` (SELECT COUNT(*) flagged as unprepared)
+
+### Changed
+- `SecurityChecker`: file-level skip now includes both `DatabaseChecker.php` AND `DbGrowthChecker.php`
+- `DbGrowthChecker`: `->query()` → `->prepare()->execute()` for `SELECT COUNT(*) FROM` (semantic consistency)
+- Rationale: L06 — introspection queries (SHOW/PRAGMA/DESCRIBE/EXPLAIN/COUNT) are metadata, not user input
+
+## [v2.3.0] - 2026-10-28
+
+### Added
+- **`DbGrowthChecker`** — READ-ONLY PDO row-count tracking
+  - Auto-detect MySQL creds: `config.php`, `.env`, `config.local.php`, `config/database.php`
+  - Persist per-table counts → `.bona/db-snapshot.json`
+  - WARN if any table grew >50% since last snapshot
+  - Graceful SKIP: no creds / connection fail / introspection error
+  - READ-ONLY enforced via `PDO::MYSQL_ATTR_INIT_COMMAND = 'SET SESSION TRANSACTION READ ONLY'`
+- **`CoverageChecker`** — PHPUnit line coverage
+  - Requires `pcov` OR `xdebug` → SKIP with install hint if neither
+  - FAIL <60%, WARN <80%, PASS >=80%
+  - Activates automatically once `sudo pecl install pcov`
+
 ## [v2.7.0] - 2026-10-28
 
 ### Added

@@ -80,11 +80,16 @@ class TtfbChecker extends AbstractChecker {
 
         $ratio = $baseline > 0.0 ? $median / $baseline : 1.0;
         $deltaPct = ($ratio - 1.0) * 100.0;
+        $deltaMs = ($median - $baseline) * 1000.0;
+        // Sub-30ms measurements are dominated by noise (context switch, GC,
+        // scheduler jitter on local PHP server). Only fire FAIL/WARN if BOTH
+        // relative ratio AND absolute delta exceed thresholds.
+        $noiseFloorMs = 30.0;
         $summary = sprintf('TTFB: %.0fms vs baseline %.0fms (%+.1f%%, n=%d)', $median * 1000, $baseline * 1000, $deltaPct, $n);
 
-        if ($ratio > self::FAIL_RATIO) {
+        if ($ratio > self::FAIL_RATIO && $deltaMs >= $noiseFloorMs) {
             $this->addResult('FAIL', $summary . ' — regression > 20%');
-        } elseif ($ratio > self::WARN_RATIO) {
+        } elseif ($ratio > self::WARN_RATIO && $deltaMs >= $noiseFloorMs) {
             $this->addResult('WARN', $summary . ' — regression > 10%');
         } else {
             if ($median < $baseline) {

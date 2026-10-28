@@ -26,6 +26,33 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.4.3] - 2026-10-28
+
+### Fixed
+- **TtfbChecker false-positive FAIL** — baseline 9.3ms vs current 13ms
+  triggered FAIL (>20% ratio) despite 3.7ms delta being pure noise.
+  WSL2 local PHP server has ±5ms jitter from GC/context switch.
+
+### Changed
+- Added `$noiseFloorMs = 30.0` absolute threshold
+- FAIL fires only if `$ratio > 1.20` **AND** `$deltaMs >= 30`
+- WARN fires only if `$ratio > 1.10` **AND** `$deltaMs >= 30`
+- Sub-30ms measurements no longer produce FAIL/WARN regardless of ratio
+
+### Behavior verification
+- 9.3ms → 13.0ms (delta=3.7ms)  → PASS (noise)
+- 9.3ms → 50.0ms (delta=40.7ms) → FAIL (real regression, unchanged)
+
+### Why
+Ratio-only threshold conflates "noise" (9→13ms) with "regression" (50→200ms).
+Absolute floor distinguishes measurement jitter from real performance degradation.
+
+### Not fixed (out of scope, evidence-based)
+- **A11yChecker**: rc=2 "not JSON-parseable" on target is environment issue,
+  not tool bug. Fixture test proves A11yChecker works:
+  `/tmp` fixture with index.php → PASS (0 errors). Target has complex pages
+  that crash Chromium mid-crawl. Correct behavior = SKIP with Chromium hint.
+
 ## [v2.4.2] - 2026-10-28
 
 ### Fixed

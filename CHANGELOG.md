@@ -26,6 +26,24 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.4.2] - 2026-10-28
+
+### Fixed
+- **DuplicationChecker LOC parse bug** — v2.4.1 regex `/(\d+)\s+lines of code/`
+  expects "3948 lines of code" but phpcpd 6.x outputs "3948 total lines of code"
+  (word "total" between number and "lines"). Match fails → fallback `$totalLines = 1`
+  → absurd `6800% of 1 LOC` self-audit FAIL.
+
+### Changed
+- Parse percentage directly from phpcpd summary: `/([\d.]+)%\s+duplicated lines/`
+- Fallback: LOC extraction with `(?:total\s+)?` optional word
+- Last resort: INFO with absolute numbers (no fake threshold breach)
+- No `end(explode())` — keeps PHPStan L6 clean
+
+### Verified
+Self-audit on tool source: `1.72% duplicated` → PASS (<5% threshold)
+24f813a (v2.4.1): 1 FAIL regression. v2.4.2: 0 FAIL / 1 WARN restored.
+
 ## [v2.4.1] - 2026-10-28
 
 ### Fixed

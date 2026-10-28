@@ -45,11 +45,30 @@ class DuplicationChecker extends AbstractChecker {
             $lines  = (int)$m[2];
             $files  = (int)$m[3];
 
-            $totalLines = 1;
-            if (preg_match('/(\d+)\s+lines of code/i', $out, $locM)) {
-                $totalLines = max(1, (int)$locM[1]);
+            // Parse percentage directly: "X.XX% duplicated lines out of Y total lines of code"
+            $pct = 0.0;
+            $totalLines = 0;
+            if (preg_match('/([\d.]+)%\s+duplicated lines/i', $out, $pctM)) {
+                $pct = (float)$pctM[1];
+                if (preg_match('/out of ([\d,]+)\s+(?:total\s+)?lines of code/i', $out, $locM)) {
+                    $totalLines = (int)str_replace(',', '', $locM[1]);
+                }
+            } elseif (preg_match('/([\d,]+)\s+(?:total\s+)?lines of code/i', $out, $locM)) {
+                $totalLines = (int)str_replace(',', '', $locM[1]);
+                if ($totalLines > 0) {
+                    $pct = ($lines / $totalLines) * 100;
+                }
             }
-            $pct = ($lines / $totalLines) * 100;
+
+            if ($pct === 0.0 && $totalLines === 0) {
+                $summary = sprintf(
+                    '%d clone%s, %d duplicated lines in %d file%s (LOC denominator unknown)',
+                    $clones, $clones === 1 ? '' : 's',
+                    $lines, $files, $files === 1 ? '' : 's'
+                );
+                $this->addResult('INFO', $summary);
+                return $this->results;
+            }
 
             $summary = sprintf(
                 '%d clone%s, %d duplicated lines in %d file%s (%.2f%% of %d LOC)',

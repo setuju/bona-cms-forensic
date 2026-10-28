@@ -27,10 +27,13 @@ class DuplicationChecker extends AbstractChecker {
             return $this->results;
         }
 
+        $targetDir = $this->config->getTargetDir();
         $cmd = 'timeout 90 ' . escapeshellarg($phpcpd)
              . ' --min-lines=6 --min-tokens=70 --fuzzy'
-             . ' --names-exclude=Test.php,Test,phpunit.xml,tests'
-             . ' ' . escapeshellarg($this->config->getTargetDir()) . ' 2>&1';
+             . ' --exclude=vendor --exclude=node_modules --exclude=.git'
+             . ' --exclude=tests --exclude=.bona --exclude=cache'
+             . ' --exclude=build --exclude=dist --exclude=coverage'
+             . ' ' . escapeshellarg($targetDir) . ' 2>&1';
         $out = (string)shell_exec($cmd);
         if ($out === '') {
             $this->addResult('SKIP', 'phpcpd produced no output.');

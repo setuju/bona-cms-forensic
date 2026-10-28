@@ -26,6 +26,32 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.4.1] - 2026-10-28
+
+### Fixed
+- **ComplexityChecker** — 2 bugs from v2.4.0:
+  - Regex mismatch: `phploc` outputs `Average Complexity per Method  X.XX` (not
+    `Cyclomatic Complexity per Class/Method: X.XX`). Now parses correctly.
+  - Missing excludes: `phploc` was scanning entire targetDir including vendor/,
+    node_modules/, tests/. Now excludes via `--exclude=DIR` flags.
+    Self-audit went from 1956 files / 192,524 LOC to 37 files / 4,000 LOC.
+- **DuplicationChecker** — missing directory excludes:
+  - `--names-exclude=tests` was filename pattern, not directory (no-op).
+    Replaced with `--exclude=vendor --exclude=node_modules --exclude=tests ...`
+    matching ComplexityChecker pattern.
+
+### Verification
+- phploc 7.0.2: `Average Complexity per Method = 2.26` → ComplexityChecker PASS
+- phpcpd 6.0.3: see run output for actual % (tool's 31 checkers share structural patterns)
+
+### Notes
+- Tools installed via `composer global require` (phploc 7.0.2, phpcpd 6.0.3,
+  phpmetrics 2.11.0 — all symlinked to ~/.local/bin)
+- **phpcpd is abandoned** (2022) — mentioned in composer output. Alternative:
+  use `phpmetrics` for combined complexity + duplication (not implemented yet).
+- Session floor for self-audit remains 1 WARN (PHP2Shell user php.ini).
+  External target audits may add WARN if target has real duplication.
+
 ## [v2.4.0] - 2026-10-28
 
 ### Added

@@ -27,15 +27,19 @@ class ComplexityChecker extends AbstractChecker {
             return $this->results;
         }
 
-        $cmd = 'timeout 60 ' . escapeshellarg($phploc) . ' '
-             . escapeshellarg($this->config->getTargetDir()) . ' 2>&1';
+        $targetDir = $this->config->getTargetDir();
+        $cmd = 'timeout 60 ' . escapeshellarg($phploc)
+             . ' --exclude=vendor --exclude=node_modules --exclude=.git'
+             . ' --exclude=tests --exclude=.bona --exclude=cache'
+             . ' --exclude=build --exclude=dist --exclude=coverage'
+             . ' ' . escapeshellarg($targetDir) . ' 2>&1';
         $out = shell_exec($cmd);
         if (!is_string($out) || $out === '') {
             $this->addResult('SKIP', 'phploc execution failed or timed out.');
             return $this->results;
         }
 
-        if (!preg_match('/Cyclomatic Complexity per Class\/Method\s*:\s*([\d.]+)/i', $out, $m)) {
+        if (!preg_match('/Average Complexity per Method\s+([\d.]+)/i', $out, $m)) {
             $this->addResult('SKIP', 'Could not parse phploc output (unexpected format).');
             return $this->results;
         }

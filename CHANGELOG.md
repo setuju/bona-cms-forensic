@@ -76,6 +76,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AdvancedSecurityChecker` provides runtime CSRF surface checks
   in the meantime.
 
+## [v2.2.0.1] - 2026-10-28
+
+### Added
+- **A11yChecker** — WCAG 2.1 AA accessibility audit via pa11y-ci
+  - Detects pa11y-ci binary; SKIP with install hint if missing
+  - Detects entry point (`public/index.php`, `index.php`, `router.php`, `router-dev.php`)
+  - Starts ephemeral PHP server on free port (9297-9397) — reused from TtfbChecker
+  - Writes `.bona/a11y-ci-config.json` (WSL-safe: `--no-sandbox`, `--disable-dev-shm-usage`, `--disable-gpu`)
+  - Runs `pa11y-ci --reporter=json` on root URL, extracts WCAG 2.1 AA errors
+  - FAIL if errors > 0; PASS otherwise
+  - Per-run log: `.bona/logs/log-a11y-{timestamp}.txt`
+  - Server cleanup in `finally` — no orphaned processes
+  - Graceful SKIP: no curl / no pa11y-ci / no entry point / no free port / server failed / timeout / JSON parse failure
+  - Read-only: config + logs go to `.bona/` under tool dir (never touches target)
+
+### Notes
+- MVP tests root URL only; per-page deep crawl deferred to v2.2.0.2
+- WSL2-ready: `--no-sandbox` required for Chromium in container; `--disable-dev-shm-usage` for limited `/dev/shm`
+
 ## [v2.2.0] - 2026-10-28
 
 ### Added

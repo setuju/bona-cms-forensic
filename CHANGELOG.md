@@ -45,6 +45,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SemgrepChecker** — append `--timeout=45 --jobs=4 [--max-target-bytes=1000000]` when supported by installed semgrep version (probed at patch time; zero behavior change if none apply)
 - **bin/forensic** — `--skip=SECTION` flag (comma-separated, substring match on getName); complement to `--section=`, useful in prod where slow/network-bound sections aren't critical
 
+### Reporting
+- **Grouped-by-severity summary** — console output adds "📊 GROUPED BY SEVERITY" after FINAL SUMMARY: FAIL/WARN/SKIP items grouped (up to 10 each, msg truncated), PASS names inline
+- **`--report[=PATH]`** — markdown report generator
+  - `--report` → `.bona/reports/report-Ymd-His.md` (auto path, tool dir)
+  - `--report=/path` → explicit path
+  - Structure: header (target, tool HEAD, status), executive summary table, findings by severity, PASS/SKIP bullets, read-only disclaimer
+  - Atomic write (.tmp → rename); works in json mode (notice to stderr)
+  - Read-only: never writes to targetDir
+  - No fix instructions embedded
+
 ### Notes
 - Broken-links: `--ignore-path=scripts` opt-in reduces 17 FAIL → 0 (scripts are CWD-relative by design)
 - Zero behavior change for callers not using `--ignore-path`

@@ -60,6 +60,7 @@ $jsonMode = in_array('--json', $argv, true);
 $onlySection = null;
 $skipSections = [];
 $ignorePaths = [];
+$reportPath = null;
 foreach ($argv as $arg) {
     if (str_starts_with($arg, '--root=')) $target = substr($arg, 7);
     if (str_starts_with($arg, '--section=')) $onlySection = substr($arg, 10);
@@ -73,6 +74,8 @@ foreach ($argv as $arg) {
             if ($sk !== '') $skipSections[] = $sk;
         }
     }
+    if ($arg === '--report') { $reportPath = ''; }
+    if (str_starts_with($arg, '--report=')) { $reportPath = substr($arg, 9); }
 }
 
 if (!empty($ignorePaths)) {
@@ -90,6 +93,7 @@ if (!$jsonMode) {
     if ($onlySection !== null) echo "  Filter : \033[1;33m{$onlySection}\033[0m\n";
     if (!empty($ignorePaths)) echo "  Ignore : \033[1;33m" . implode(', ', $ignorePaths) . "\033[0m\n";
     if (!empty($skipSections)) echo "  Skip   : \033[1;33m" . implode(', ', $skipSections) . "\033[0m\n";
+    if ($reportPath !== null) echo "  Report : \033[1;33m" . ($reportPath === '' ? '(auto)' : $reportPath) . "\033[0m\n";
     echo "\n";
 }
 
@@ -223,5 +227,102 @@ if ($jsonMode) {
     echo "  Status      : " . ($totalFails > 0 ? "\033[0;31mFAIL\033[0m" : ($totalWarns > 0 ? "\033[0;33mWARN\033[0m" : "\033[0;32mPASS\033[0m")) . "\n";
     echo "\033[1;35m══════════════════════════════════════════════════════════════════════════\033[0m\n\n";
 }
+
+    // ═══════════════════════════════════════════════════════════════
+    // v2.2.5-D ops2: grouped-by-severity summary (non-json only)
+    // ═══════════════════════════════════════════════════════════════
+    $grouped = ['FAIL' => [], 'WARN' => [], 'PASS' => [], 'SKIP' => [], 'INFO' => []];
+    foreach ($allResults as $checkerName => $checks) {
+        foreach ($checks as $res) {
+            $st = $res['status'] ?? 'INFO';
+            if (!isset($grouped[$st])) $grouped[$st] = [];
+            $grouped[$st][] = ['checker' => (string)$checkerName, 'message' => (string)($res['message'] ?? '')];
+        }
+    }
+
+    if (!$jsonMode) {
+        echo "\033[1;35m══════════════════════════════════════════════════════════════════════════\033[0m\n";
+        echo "\033[1;35m  📊 GROUPED BY SEVERITY\033[0m\n";
+        echo "\033[1;35m" . str_repeat('─', 74) . "\033[0m\n";
+
+        $sevIcons = ['FAIL' => "\033[0;31m✗\033[0m", 'WARN' => "\033[0;33m⚠\033[0m",
+                     'SKIP' => "\033[0;90m○\033[0m"];
+        foreach (['FAIL', 'WARN', 'SKIP'] as $sev) {
+            if (empty($grouped[$sev])) continue;
+            echo "  {$sevIcons[$sev]} {$sev} (" . count($grouped[$sev]) . "):\n";
+            foreach (array_slice($grouped[$sev], 0, 10) as $item) {
+                $msg = strlen($item['message']) > 68 ? substr($item['message'], 0, 65) . '...' : $item['message'];
+                echo "      \033[2m- [{$item['checker']}] {$msg}\033[0m\n";
+            }
+            if (count($grouped[$sev]) > 10) echo "      \033[2m... and " . (count($grouped[$sev]) - 10) . " more\033[0m\n";
+        }
+        if (!empty($grouped['PASS'])) {
+            $passNames = array_map(static fn(array $i): string => $i['checker'], $grouped['PASS']);
+            $shown = implode(', ', array_slice($passNames, 0, 8));
+            $suffix = count($passNames) > 8 ? ', ...' : '';
+            echo "  \033[0;32m✓\033[0m PASS (" . count($grouped['PASS']) . "): \033[2m{$shown}{$suffix}\033[0m\n";
+        }
+        echo "\033[1;35m══════════════════════════════════════════════════════════════════════════\033[0m\n\n";
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // v2.2.5-D ops3: --report markdown generator
+    // ═══════════════════════════════════════════════════════════════
+    if ($reportPath !== null) {
+        $finalPath = $reportPath;
+        if ($finalPath === '') {
+            $finalPath = $config->getToolDir() . '/.bona/reports/report-' . date('Ymd-His') . '.md';
+        }
+        $reportDir = dirname($finalPath);
+        if (!is_dir($reportDir)) @mkdir($reportDir, 0755, true);
+
+        $toolHead = trim((string)shell_exec('cd ' . escapeshellarg($config->getToolDir()) . ' && git rev-parse --short HEAD 2>/dev/null'));
+        $reportStatus = $totalFails > 0 ? 'FAIL' : ($totalWarns > 0 ? 'WARN' : 'PASS');
+
+        $md = "# Bona Forensic Audit Report\n\n";
+        $md .= "**Generated:** " . date('c') . "\n\n";
+        $md .= "**Target:** `" . $config->getTargetDir() . "`\n\n";
+        $md .= "**Tool:** `bona-cms-forensic` @ " . ($toolHead !== '' ? $toolHead : 'unknown') . "\n\n";
+        $md .= "**Status:** **{$reportStatus}**\n\n";
+        $md .= "> Read-only audit. No target files were modified. Findings are informational — no automated fixes applied.\n\n";
+        $md .= "---\n\n## Executive Summary\n\n";
+        $md .= "| Status | Count |\n|---|---|\n";
+        $md .= "| ✗ FAIL | " . count($grouped['FAIL']) . " |\n";
+        $md .= "| ⚠ WARN | " . count($grouped['WARN']) . " |\n";
+        $md .= "| ✓ PASS | " . count($grouped['PASS']) . " |\n";
+        $md .= "| ○ SKIP | " . count($grouped['SKIP']) . " |\n";
+        if (!empty($grouped['INFO'])) $md .= "| ℹ INFO | " . count($grouped['INFO']) . " |\n";
+        $md .= "\n## Findings\n\n";
+
+        foreach (['FAIL', 'WARN'] as $sev) {
+            if (empty($grouped[$sev])) continue;
+            $icon = $sev === 'FAIL' ? '✗' : '⚠';
+            $md .= "### {$icon} {$sev} (" . count($grouped[$sev]) . ")\n\n";
+            foreach ($grouped[$sev] as $item) {
+                $md .= "#### {$item['checker']}\n\n{$item['message']}\n\n";
+            }
+        }
+        if (!empty($grouped['PASS'])) {
+            $md .= "### ✓ PASS (" . count($grouped['PASS']) . ")\n\n";
+            foreach ($grouped['PASS'] as $item) $md .= "- **{$item['checker']}**: {$item['message']}\n";
+            $md .= "\n";
+        }
+        if (!empty($grouped['SKIP'])) {
+            $md .= "### ○ SKIP (" . count($grouped['SKIP']) . ")\n\n";
+            foreach ($grouped['SKIP'] as $item) $md .= "- **{$item['checker']}**: {$item['message']}\n";
+            $md .= "\n";
+        }
+        $md .= "---\n\n*Generated by Bona Forensic — read-only audit tool.*\n";
+
+        $tmp = $finalPath . '.tmp';
+        $ok = @file_put_contents($tmp, $md);
+        if ($ok !== false) {
+            @rename($tmp, $finalPath);
+            if (!$jsonMode) echo "  📄 Report written: \033[1;33m{$finalPath}\033[0m\n\n";
+            else fwrite(STDERR, "Report written: {$finalPath}\n");
+        } else {
+            if (!$jsonMode) echo "  ⚠ Report write failed: {$finalPath}\n\n";
+        }
+    }
 
 exit($totalFails > 0 ? 1 : 0);

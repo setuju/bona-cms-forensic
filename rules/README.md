@@ -129,8 +129,16 @@ Add a row to the table above, and a `- **XxxRule**` line in `CHANGELOG.md` under
 
 ## ⚠️ Known Deferred Rule
 
-**`csrf.yaml`** — CSRF token presence detection. **Deferred to v2.4.0** as AST-based dedicated checker.
+**`csrf.yaml`** — **NOT a Semgrep rule. Implemented in `SecurityChecker` (PHP-side) as of v2.5.0.**
 
-**Why:** initial line-based regex matched **all** `<form method="POST">` tags — **61 false positives** on a real target (every POST form flagged regardless of whether it contains `csrf_token`). Line-based regex cannot distinguish "form has token" from "form lacks token" reliably. Deferred to v2.4.0 AST-based approach.
+**Why not Semgrep:**
+- Semgrep `languages: [generic]` treats inline PHP+HTML as opaque INLINE_HTML tokens — no AST structure for form body vs attributes.
+- `metavariable-pattern` on `$...BODY` doesn't capture HTML body in generic mode.
+- `pattern-not-regex` operates per-finding, not per-file.
+- **Result:** impossible to differentiate "form has csrf token inside" from "does not" via Semgrep. Initial line-based attempt produced 61 false positives on a 100% csrf-clean target.
 
-**Interim coverage:** `AdvancedSecurityChecker` performs runtime CSRF surface checks (cookie flags, SameSite, etc.).
+**Where it lives:** `SecurityChecker::run()` (v2.5.0):
+- **Method 1 (file-level)**: file has `<form method="POST">` but no CSRF keyword (`csrf_field`/`csrf_token`/`csrf_validate`/`_token`/`csrfmiddlewaretoken`) → WARN
+- **Method 2 (form-block)**: each POST form body must reference `csrf` or `_token` → WARN if missing
+- Both WARN-only (heuristic, non-blocking)
+- **Verified: 0 false positives** on Bona-CMS-Dev-X (known csrf-clean)

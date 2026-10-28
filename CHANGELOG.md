@@ -26,6 +26,22 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.7.0] - 2026-10-28
+
+### Added
+- **`src/Checkers/FrameworkChecker.php`** — detect PHP framework
+  - Marker files: WordPress, Laravel, Symfony, CodeIgniter, Yii2, CakePHP, Drupal, Slim
+  - Composer-based detection: `slim/slim`, `laravel/framework`, `symfony/framework-bundle`, etc.
+  - Output: INFO only (never FAIL — detection is metadata, not quality gate)
+  - Self-audit on CLI tool → INFO "No framework markers detected"
+  - `--section=framework --show-findings` shows per-framework evidence paths
+- Registered in `$checkers` array (27 concrete checkers total)
+
+### Notes
+- Detection is additive: multi-framework projects list all matches sorted by evidence count
+- Composer evidence appended as `composer: <pkg>` alongside file markers
+- Zero writes to target — pure `file_exists` + `is_readable` probes
+
 ## [v2.6.0] - 2026-10-28
 
 ### Added

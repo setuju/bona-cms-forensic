@@ -44,6 +44,7 @@ use SatuRumah\Forensic\Checkers\ImportDepthChecker;
 use SatuRumah\Forensic\Checkers\CentralityChecker;
 use SatuRumah\Forensic\Checkers\TtfbChecker;
 use SatuRumah\Forensic\Checkers\A11yChecker;
+use SatuRumah\Forensic\Checkers\FrameworkChecker;
 use SatuRumah\Forensic\Checkers\IntegrityChecker;
 use SatuRumah\Forensic\Checkers\Php2ShellChecker;
 use SatuRumah\Forensic\Checkers\SemgrepChecker;
@@ -170,6 +171,7 @@ $checkers = [
     new ClsChecker($config),
     new TtfbChecker($config),
     new A11yChecker($config),
+    new FrameworkChecker($config),
 ];
 
 // v2.2.5-A: --skip=SECTION filter (substring match on getName)

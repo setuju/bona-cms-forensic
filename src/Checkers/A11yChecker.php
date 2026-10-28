@@ -82,10 +82,33 @@ class A11yChecker extends AbstractChecker {
                  . ' --config=' . escapeshellarg($configPath)
                  . ' --reporter=json '
                  . ' 2>/dev/null';
+            // Redirect pa11y-ci output to temp file — exec() buffer limits
+            // truncate JSON > ~256KB (335 WCAG findings ≈ 268KB on real targets).
+            $tmpOut = tempnam(sys_get_temp_dir(), 'bona-a11y-out-');
+            if ($tmpOut === false) {
+                $this->addResult('SKIP', 'Cannot create temp file for pa11y-ci output.');
+                return $this->results;
+            }
+            $cmdFile = $cmd . ' > ' . escapeshellarg($tmpOut) . ' 2>&1';
             $out = [];
             $rc = 0;
-            @exec($cmd, $out, $rc);
-            $stdout = implode("\n", $out);
+            @exec($cmdFile, $out, $rc);
+            $stdout = (string)@file_get_contents($tmpOut);
+            @unlink($tmpOut);
+
+            // Truncation detection: valid pa11y JSON always ends with "}"
+            // (after possible trailing whitespace). If not, output was cut.
+            $stdoutTrim = trim($stdout);
+            if ($stdoutTrim !== '' && !str_ends_with($stdoutTrim, '}')) {
+                $size = strlen($stdout);
+                $this->addResult('WARN', sprintf(
+                    'pa11y-ci output appears truncated at %d bytes (max ~256KB per exec). '
+                    . 'Target has very large WCAG findings set. Try manual: '
+                    . 'pa11y-ci --reporter=json <url>',
+                    $size
+                ));
+                return $this->results;
+            }
 
             if ($rc === 124) {
                 $this->addResult('SKIP', 'pa11y-ci timed out after ' . self::HTTP_TIMEOUT_SEC . 's.');

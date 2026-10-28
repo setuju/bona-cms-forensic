@@ -26,6 +26,30 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.4.5] - 2026-10-28
+
+### Fixed
+- **A11yChecker JSON truncation** — `exec()` captures stdout in memory with
+  ~256KB limit. Real target with 335 WCAG findings produces ~268KB JSON →
+  silently truncated mid-string → `json_decode` returns null → false SKIP
+  "not JSON-parseable (Chromium issue?)".
+  - Fix: redirect pa11y-ci stdout to temp file, read file (no size limit)
+  - Truncation detection: if output doesn't end with `}`, WARN with size
+    + actionable hint instead of fake "Chromium issue"
+  - Temp file always cleaned up in same function scope
+
+### Evidence (from v2.4.4 deep test on Bona-CMS-Dev-X)
+- Raw log: `first_line: {"total":5,"passes":0,"errors":335,...` (valid start)
+- Raw log end: `"message":"...contrast...Expected...E` — mid-word cutoff
+- 335 findings ≈ 268KB — exceeded exec() buffer
+- After fix: real findings reported, no SKIP
+
+### Not fixed
+- **A11y on target with 300+ findings** still WARN truncation risk above ~256KB
+  threshold — the fix removes the buffer for our side, but pa11y-ci or shell
+  piping may still produce very large files. In that case WARN message tells
+  user to run pa11y-ci manually.
+
 ## [v2.4.4] - 2026-10-28
 
 ### Fixed

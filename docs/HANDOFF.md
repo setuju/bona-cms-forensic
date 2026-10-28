@@ -57,7 +57,7 @@
 
 | Priority | Task | Prereq |
 |---|---|---|
-| P1 | v2.3.0 — DbGrowth + CoverageChecker | Install `pcov` (`pecl install pcov`) or `xdebug` |
+| ~~P1~~ ✅ | v2.3.0 — DbGrowth + CoverageChecker | **DONE** — pcov 1.0.12 via `apt install php8.4-pcov` |
 | P2 | v2.4.0 — ComplexityChecker, DuplicationChecker | composer: phpmetrics/phpcpd |
 | P3 | v2.6.0 — Grafana dashboard, HTML report | none |
 | P4 | v2.7.0 — Framework-specific (WordPress, Laravel, Symfony) | none |
@@ -168,8 +168,8 @@ Additional learnings from this session:
   - A11y deep crawl will SKIP until fixed **app-side** (user responsibility, not tool bug)
   - Not blocking other checkers on that target
 
-- **pcov/xdebug not installed** — blocks v2.3.0 CoverageChecker
-  - Fix: `pecl install pcov` OR `pecl install xdebug` + php.ini enable
+- ~~pcov/xdebug not installed~~ ✅ **RESOLVED 2026-10-28** — pcov 1.0.12 installed via `apt install php8.4-pcov`
+  - CoverageChecker now active for targets with phpunit.xml (self-audit SKIPs correctly — no tests)
 
 - **Bona WCAG errors**: 86 real findings on root (contrast, form submit)
   - These are TRUE findings for user to fix target-side — not tool bugs

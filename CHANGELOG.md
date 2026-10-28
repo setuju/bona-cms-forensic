@@ -26,6 +26,25 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.3.1] - 2026-10-28
+
+### Added
+- **Test infrastructure** — 15 tests across 3 files
+  - `tests/Unit/FileSystemTest.php` — scanDir (empty/extensions/excludes/recursive)
+  - `tests/Unit/HtmlReportTest.php` — render all status paths
+  - `tests/Unit/FrameworkCheckerTest.php` — no/WP/Laravel detection
+- **`phpunit.xml`** — bootstrap, testsuite, coverage scoped to FileSystem.php
+- **`autoload-dev`** — `Tests\` → `tests/`
+- **composer scripts** — `test`, `coverage`
+
+### Changed
+- **`bin/forensic --version`** — `2.2.5` → `2.7.0` (was stale 5 versions behind CHANGELOG)
+
+### Effect
+- `Code Reliability` WARN (tests=0) → resolved
+- `CoverageChecker` now active (phpunit.xml present)
+- `--version` accurate
+
 ## [v2.3.0-fix] - 2026-10-28
 
 ### Fixed

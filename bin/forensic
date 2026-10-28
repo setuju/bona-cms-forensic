@@ -90,7 +90,7 @@ USAGE
 
 if (in_array('--version', $argv, true)) {
     $composerPath = __DIR__ . '/../composer.json';
-    $version = '2.2.5';  // fallback: composer.json for apps has no 'version' key (update on release)
+    $version = '2.7.0';  // fallback: composer.json for apps has no 'version' key (update on release)
     if (is_readable($composerPath)) {
         $c = json_decode((string)file_get_contents($composerPath), true);
         if (is_array($c) && isset($c['version'])) $version = (string)$c['version'];

@@ -25,8 +25,12 @@ namespace SatuRumah\Forensic\Checkers;
 class A11yChecker extends AbstractChecker {
     public function getName(): string { return 'A11y (WCAG 2.1 AA) via pa11y-ci'; }
 
-    private const HTTP_TIMEOUT_SEC = 120;
+    private const HTTP_TIMEOUT_SEC = 180;
     private const PAGESPEED_PROBE_TIMEOUT = 3;
+    private const MAX_PAGES = 5;
+    private const BOOT_RETRY_MS = 200;
+    private const BOOT_RETRY_MAX = 15;
+    private const PROBE_TIMEOUT = 3;
 
     public function run(): array {
         if (!function_exists('curl_init')) {
@@ -59,18 +63,21 @@ class A11yChecker extends AbstractChecker {
         }
 
         try {
-            $configPath = $this->writePa11yConfig();
+            $urls = $this->discoverUrlsV2($port);
+            if (empty($urls)) {
+                $this->addResult('SKIP', 'No crawlable URLs discovered on target root.');
+                return $this->results;
+            }
+            $configPath = $this->writePa11yConfigV2($urls);
             if ($configPath === null) {
-                $this->addResult('SKIP', 'Failed to write pa11y-ci config to .bona/.');
+                $this->addResult('SKIP', 'Failed to write pa11y-ci config with urls[].');
                 return $this->results;
             }
 
-            $url = "http://127.0.0.1:{$port}/";
             $cmd = 'timeout ' . self::HTTP_TIMEOUT_SEC
                  . ' ' . escapeshellarg($pa11y)
                  . ' --config=' . escapeshellarg($configPath)
                  . ' --reporter=json '
-                 . escapeshellarg($url)
                  . ' 2>/dev/null';
             $out = [];
             $rc = 0;
@@ -79,6 +86,10 @@ class A11yChecker extends AbstractChecker {
 
             if ($rc === 124) {
                 $this->addResult('SKIP', 'pa11y-ci timed out after ' . self::HTTP_TIMEOUT_SEC . 's.');
+                return $this->results;
+            }
+            if ($rc !== 0 && $rc !== 2) {
+                $this->addResult('SKIP', "pa11y-ci exited with unexpected code {$rc}.");
                 return $this->results;
             }
 
@@ -112,14 +123,14 @@ class A11yChecker extends AbstractChecker {
                 }
             }
 
-            $this->writeLog($url, $errorCount, $passCount, $findings);
+            $this->writeLog(implode(", ", $urls), $errorCount, $passCount, $findings);
 
             if ($errorCount > 0) {
-                $this->addResult('FAIL', "{$errorCount} WCAG 2.1 AA error(s) on {$url}.", ['list' => array_slice($findings, 0, 20)]);
+                $this->addResult('FAIL', "{$errorCount} WCAG 2.1 AA error(s) across " . count($urls) . " page(s).", ['list' => array_slice($findings, 0, 20)]);
             } elseif ($passCount > 0) {
-                $this->addResult('PASS', "No WCAG 2.1 AA errors on {$url} ({$passCount} checks passed).");
+                $this->addResult('PASS', "No WCAG 2.1 AA errors across " . count($urls) . " page(s) ({$passCount} checks passed).");
             } else {
-                $this->addResult('PASS', "No WCAG 2.1 AA errors detected on {$url}.");
+                $this->addResult('PASS', "No WCAG 2.1 AA errors across " . count($urls) . " page(s).");
             }
         } finally {
             $this->stopServer($port);
@@ -168,15 +179,98 @@ class A11yChecker extends AbstractChecker {
         return false;
     }
 
-    private function stopServer(int $port): void {
-        @exec("pkill -f 'php -S 127.0.0.1:{$port}' 2>/dev/null");
+    private function waitServerReady(int $port): bool {
+        for ($i = 0; $i < self::BOOT_RETRY_MAX; $i++) {
+            $ch = curl_init("http://127.0.0.1:{$port}/");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_NOBODY, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 1);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+            curl_exec($ch);
+            $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($code > 0) return true;
+            usleep(self::BOOT_RETRY_MS * 1000);
+        }
+        return false;
     }
 
-    private function writePa11yConfig(): ?string {
+    /** @return array<int, string> */
+    private function discoverUrlsV2(int $port): array {
+        if (!$this->waitServerReady($port)) return [];
+        $rootUrl = "http://127.0.0.1:{$port}/";
+        $rootHtml = $this->fetchHtmlV2($rootUrl);
+        if ($rootHtml === null) return [];
+        $paths = ['/'];
+        $priority = [];
+        $fallback = [];
+        if (preg_match_all('/<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>/i', $rootHtml, $m)) {
+            foreach ($m[1] as $href) {
+                $path = $this->normalizePathV2($href);
+                if ($path === null) continue;
+                if (in_array($path, $paths, true)) continue;
+                if (in_array($path, $priority, true)) continue;
+                if (in_array($path, $fallback, true)) continue;
+                if (preg_match('#^/(about|contact|blog|quotes|privacy|terms|help|faq|subscribe|login)(/|$)#i', $path)) {
+                    $priority[] = $path;
+                } else {
+                    $fallback[] = $path;
+                }
+            }
+        }
+        foreach (array_merge($priority, $fallback) as $p) {
+            $paths[] = $p;
+            if (count($paths) >= self::MAX_PAGES) break;
+        }
+        $urls = [];
+        foreach ($paths as $p) $urls[] = "http://127.0.0.1:{$port}{$p}";
+        return $urls;
+    }
+
+    private function normalizePathV2(string $href): ?string {
+        $href = trim($href);
+        if ($href === '' || $href === '#') return null;
+        if (str_starts_with($href, '#')) return null;
+        if (preg_match('#^(mailto:|tel:|javascript:)#i', $href)) return null;
+        if (str_starts_with($href, 'http://') || str_starts_with($href, 'https://')) {
+            $parsed = parse_url($href);
+            if (!is_array($parsed)) return null;
+            $host = $parsed['host'] ?? '';
+            if ($host !== '127.0.0.1' && $host !== 'localhost') return null;
+            $href = $parsed['path'] ?? '/';
+        }
+        if ($href === '' || $href[0] !== '/') return null;
+        if (str_contains($href, '?')) {
+            $href = strtok($href, '?') ?: '/';
+        }
+        if (preg_match('#^/[a-z]{2}(/|$)#i', $href)) return null;
+        if (preg_match('#^/(admin|auth|install|debug|test|system|scripts|includes|views|vendor)(/|$)#i', $href)) return null;
+        if (preg_match('/\.(css|js|png|jpg|jpeg|svg|webp|woff|woff2|ico|xml|json|txt|pdf)$/i', $href)) return null;
+        return $href;
+    }
+
+    private function fetchHtmlV2(string $url): ?string {
+        $ch = curl_init($url);
+        if ($ch === false) return null;
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, self::PROBE_TIMEOUT + 5);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, self::PROBE_TIMEOUT);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+        $body = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if ($body === false || $code < 200 || $code >= 400) return null;
+        return is_string($body) ? $body : null;
+    }
+
+    /** @param array<int, string> $urls */
+    private function writePa11yConfigV2(array $urls): ?string {
         $path = $this->config->getToolDir() . '/.bona/a11y-ci-config.json';
         $dir = dirname($path);
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
         $cfg = [
+            'urls' => $urls,
             'defaults' => [
                 'standard' => 'WCAG2AA',
                 'timeout' => 30000,
@@ -190,6 +284,10 @@ class A11yChecker extends AbstractChecker {
         if ($ok === false) return null;
         @rename($tmp, $path);
         return $path;
+    }
+
+    private function stopServer(int $port): void {
+        @exec("pkill -f 'php -S 127.0.0.1:{$port}' 2>/dev/null");
     }
 
     /** @param array<int, string> $findings */

@@ -88,6 +88,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cannot inspect "form body contains csrf field" via Semgrep YAML
   - PHP-side check in `SecurityChecker` is the correct home (structural, per-file, contextual)
 
+## [v2.2.0.2] - 2026-10-28
+
+### Enhanced
+- **A11yChecker** — deep crawl v2 (multi-page audit, MAX 5 URLs)
+  - **Server-ready poll** (15× 200ms) — race-free against slow PHP boot
+  - **Accept rc=0 and rc=2** — pa11y-ci returns 2 when it finds WCAG issues (payload still valid); previous code treated non-zero as error
+  - **Language code filter** `^/[a-z]{2}(/|$)` — skips `/id/`, `/zh/`, etc. (dominated DOM order in recon)
+  - **Priority sort** — content routes first (`/about`, `/contact`, `/blog`, `/quotes`, ...), others fill remaining slots
+  - **MAX_PAGES = 5** (root + 4 content), **HTTP_TIMEOUT_SEC 120 → 180**
+  - Batch mode via `urls[]` config; Chromium spawns once, iterates all URLs (~5s per URL after first)
+  - Runtime discovery only (fetch root HTML, extract `<a href>`)
+
+### Removed
+- `A11yChecker::writePa11yConfig()` (old single-URL method) — replaced by `writePa11yConfigV2(array $urls)`
+
+### Known Limitations
+- **Prod `saturumah.net`**: root `/` returns 301 → `http://localhost:8000/id/` (hardcoded base_url in app config). A11y deep crawl SKIPs until fixed **app-side** — this is not a tool bug.
+- **JS-rendered SPA**: requires `<a href>` in initial HTML (server-side). Not applicable to current targets.
+- **Previous attempt (e851836) reverted**: rc=2 was misinterpreted; language filter missing; fixed in this retry.
+
 ## [v2.2.0.1] - 2026-10-28
 
 ### Added

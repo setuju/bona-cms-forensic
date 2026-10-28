@@ -40,6 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **False positive**: `admin/quotes.php:110` no longer flagged as "unprepared statement" — `$filterSql` is a `match()` selector with hardcoded literals
 - **Log noise**: 1002 raw errors → grouped by signature (unique actionable set)
 
+### Performance
+- **MaintenanceChecker** — parallelize `php -l` via `xargs -0 -P 8` (null-separated file list, robust for paths with spaces); failed files re-linted sequentially for detail. Isolated ~5.7-9.3s → ~1-2s on 230-file target
+- **SemgrepChecker** — append `--timeout=45 --jobs=4 [--max-target-bytes=1000000]` when supported by installed semgrep version (probed at patch time; zero behavior change if none apply)
+- **bin/forensic** — `--skip=SECTION` flag (comma-separated, substring match on getName); complement to `--section=`, useful in prod where slow/network-bound sections aren't critical
+
 ### Notes
 - Broken-links: `--ignore-path=scripts` opt-in reduces 17 FAIL → 0 (scripts are CWD-relative by design)
 - Zero behavior change for callers not using `--ignore-path`

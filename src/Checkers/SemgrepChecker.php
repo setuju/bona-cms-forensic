@@ -41,7 +41,7 @@ class SemgrepChecker extends AbstractChecker {
         }
 
         $targetDir = escapeshellarg($this->config->getTargetDir());
-        $cmd = 'cd ' . escapeshellarg($this->config->getTargetDir()) . ' && semgrep --config=' . escapeshellarg($rulesDir) . ' --json --quiet . 2>/dev/null';
+        $cmd = 'cd ' . escapeshellarg($this->config->getTargetDir()) . ' && semgrep --config=' . escapeshellarg($rulesDir) . ' --timeout=45 --jobs=4 --max-target-bytes=1000000 --json --quiet . 2>/dev/null';
         $output = shell_exec($cmd);
         $json = @json_decode($output ?: '', true);
 

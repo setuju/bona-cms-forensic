@@ -32,27 +32,12 @@ class MaintenanceChecker extends AbstractChecker {
     public function run(): array {
         $files = FileSystem::scanDir($this->config->getTargetDir(), ['php'], ['vendor', 'node_modules', '.git']);
         
-        // 1. PHP Lint (v2.2.5-A: parallel via xargs -0 -P 8)
+        // 1. PHP Lint
         $failed = 0; $errors = [];
-        if (!empty($files)) {
-            $tmpList = @tempnam(sys_get_temp_dir(), 'bona-lint-');
-            if ($tmpList !== false) {
-                @file_put_contents($tmpList, implode("\0", $files));
-                $inner = escapeshellarg('php -l "$1" >/dev/null 2>&1 || echo "FAIL:$1"');
-                $cmd = 'xargs -0 -P 8 -n 1 sh -c ' . $inner . ' _ < ' . escapeshellarg($tmpList) . ' 2>/dev/null';
-                $out = shell_exec($cmd);
-                @unlink($tmpList);
-                foreach (explode("\n", trim($out ?? '')) as $line) {
-                    if (str_starts_with($line, 'FAIL:')) {
-                        $failed++;
-                        $file = substr($line, 5);
-                        $rel = substr($file, strlen($this->config->getTargetDir()) + 1);
-                        $errOut = []; $errRet = 0;
-                        @exec('php -l ' . escapeshellarg($file) . ' 2>&1', $errOut, $errRet);
-                        $errors[] = "{$rel} | " . implode(" ", $errOut);
-                    }
-                }
-            }
+        foreach ($files as $file) {
+            $out = []; $ret = 0;
+            @exec('php -l ' . escapeshellarg($file) . ' 2>&1', $out, $ret);
+            if ($ret !== 0) { $failed++; $rel = substr($file, strlen($this->config->getTargetDir()) + 1); $errors[] = "{$rel} | " . implode(" ", $out); }
         }
         if ($failed === 0) { $this->addResult('PASS', "All " . count($files) . " files pass syntax check."); }
         else { $this->addResult('FAIL', "{$failed} files with syntax errors.", ['list' => $errors]); }

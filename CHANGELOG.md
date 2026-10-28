@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Log noise**: 1002 raw errors → grouped by signature (unique actionable set)
 
 ### Performance
-- **MaintenanceChecker** — parallelize `php -l` via `xargs -0 -P 8` (null-separated file list, robust for paths with spaces); failed files re-linted sequentially for detail. Isolated ~5.7-9.3s → ~1-2s on 230-file target
+- **MaintenanceChecker** — *deferred to v2.2.5-A.2*: initial `xargs -P 8` attempt regressed (shell-spawn overhead dominates for tiny files: 4.3s → 10.8s). Reverted to sequential; maintenance is not the bottleneck (semgrep is). Optimizations to try: `xargs -n 30` batching, `pcntl_fork`, or `token_get_all` pre-check.
 - **SemgrepChecker** — append `--timeout=45 --jobs=4 [--max-target-bytes=1000000]` when supported by installed semgrep version (probed at patch time; zero behavior change if none apply)
 - **bin/forensic** — `--skip=SECTION` flag (comma-separated, substring match on getName); complement to `--section=`, useful in prod where slow/network-bound sections aren't critical
 

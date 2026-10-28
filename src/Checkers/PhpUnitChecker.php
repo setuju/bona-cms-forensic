@@ -77,6 +77,13 @@ class PhpUnitChecker extends AbstractChecker {
         }
 
         $tests = (int)($xml['tests'] ?? 0);
+        // PHPUnit 10+ JUnit: root <testsuites> has no tests attr; child <testsuite> does.
+        // Sum children when root attribute is absent (0).
+        if ($tests === 0 && isset($xml->testsuite)) {
+            foreach ($xml->testsuite as $ts) {
+                $tests += (int)($ts['tests'] ?? 0);
+            }
+        }
         $failures = (int)($xml['failures'] ?? 0);
         $errors = (int)($xml['errors'] ?? 0);
 

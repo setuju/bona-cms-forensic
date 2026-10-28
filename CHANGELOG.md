@@ -26,6 +26,21 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.3.3] - 2026-10-28
+
+### Fixed
+- **PhpUnitChecker JUnit XML parse** — PHPUnit 10+ writes `tests` attr on child
+  `<testsuite>`, not on root `<testsuites>`. Previous code read `$xml['tests']` on
+  root → always 0 → false "empty suite" WARN even with 18/18 tests passing.
+
+### Changed
+- PhpUnitChecker sums child `<testsuite>` `tests` attributes when root absent.
+  Backward compatible with PHPUnit 9 (root attr present, no change).
+
+### Retroactive impact
+- Any target on PHPUnit 10/11/12/13 falsely flagged "empty suite". Fix universal.
+- Self-audit WARN: 2 → 1 (only PHP2Shell user-side php.ini remains).
+
 ## [v2.3.2] - 2026-10-28
 
 ### Fixed

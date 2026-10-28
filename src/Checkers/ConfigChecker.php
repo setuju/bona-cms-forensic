@@ -50,7 +50,7 @@ class ConfigChecker extends AbstractChecker {
         // 3. CMS Security Features (Basic Regex Check)
         $features = ['password_hash' => '/password_hash\s*\(/i', 'CSRF Token' => '/(csrf.?token|xsrf)/i', 'MFA/2FA' => '/(mfa|2fa|totp|two.?factor)/i'];
         $found = 0;
-        $cmsFiles = FileSystem::scanDir($this->config->getTargetDir(), ['php'], ['vendor', 'src', 'bin', 'rules']);
+        $cmsFiles = FileSystem::scanDir($this->config->getTargetDir(), ['php'], ['vendor', 'src', 'bin', 'rules', 'tests', 'node_modules', '.git', '.bona', 'cache']);
         if (empty($cmsFiles)) {
             $this->addResult('SKIP', 'No CMS source files to scan (self-audit).');
             $features = []; // clear to skip remaining loop

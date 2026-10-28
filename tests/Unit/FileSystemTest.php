@@ -84,4 +84,36 @@ final class FileSystemTest extends TestCase {
         $files = FileSystem::scanDir($this->tmp, ['php', 'phtml']);
         $this->assertCount(2, $files);
     }
+    public function testSetIgnorePrefixesAndIsIgnored(): void {
+        FileSystem::setIgnorePrefixes(['vendor', 'tests']);
+        $this->assertTrue(FileSystem::isIgnored('vendor/lib.php'));
+        $this->assertTrue(FileSystem::isIgnored('tests/foo.php'));
+        $this->assertFalse(FileSystem::isIgnored('src/keep.php'));
+        FileSystem::setIgnorePrefixes([]);
+    }
+
+    public function testWriteLogCreatesFile(): void {
+        $logDir = $this->tmp . '/logs';
+        if (!is_dir($logDir)) { mkdir($logDir, 0755, true); }
+        $this->assertDirectoryExists($logDir, 'precondition: logDir exists');
+
+        $path = FileSystem::writeLog($logDir, 'test-log', ['line1', 'line2']);
+        $this->assertFileExists($path, 'writeLog returned path does not exist: ' . $path);
+        $content = (string)file_get_contents($path);
+        $this->assertStringContainsString('line1', $content);
+        $this->assertStringContainsString('line2', $content);
+    }
+
+    public function testWriteLogMultipleCallsDifferentFiles(): void {
+        $logDir = $this->tmp . '/logs2';
+        if (!is_dir($logDir)) { mkdir($logDir, 0755, true); }
+        $this->assertDirectoryExists($logDir, 'precondition: logDir exists');
+
+        $p1 = FileSystem::writeLog($logDir, 'a', ['x']);
+        $p2 = FileSystem::writeLog($logDir, 'b', ['y']);
+        $this->assertNotSame($p1, $p2);
+        $this->assertFileExists($p1, 'first path missing: ' . $p1);
+        $this->assertFileExists($p2, 'second path missing: ' . $p2);
+    }
+
 }

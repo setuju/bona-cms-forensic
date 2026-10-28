@@ -26,6 +26,18 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.3.2] - 2026-10-28
+
+### Fixed
+- **ConfigChecker false positive** — CMS feature scan now excludes `tests/`, `node_modules/`,
+  `.git/`, `.bona/`, `cache/` in addition to existing `vendor/`, `src/`, `bin/`, `rules/`
+  - Same root cause as StatsChecker fix (v2.2.5, L20)
+- **FileSystemTest.php** — added 3 tests (6 → 9):
+  - `testSetIgnorePrefixesAndIsIgnored` — both static methods
+  - `testWriteLogCreatesFile` — writeLog single call, mkdir precondition
+  - `testWriteLogMultipleCallsDifferentFiles` — writeLog multi-call, distinct paths
+  - Coverage: 77.27% → expected > 80%
+
 ## [v2.3.1] - 2026-10-28
 
 ### Added

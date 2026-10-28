@@ -71,6 +71,7 @@ Options:
   --ignore-path=PREFIX Skip a path prefix (repeatable)
   --quick              Skip slow checks (semgrep, tests)
   --report[=PATH]      Write markdown report
+  --html[=PATH]        Write self-contained HTML report (default: .bona/report-*.html)
   --help, -h           Show this message
   --version            Show version
 
@@ -97,6 +98,12 @@ if (in_array('--version', $argv, true)) {
 }
 
 $showFindings = in_array('--show-findings', $argv, true);
+
+$htmlFlag = null;
+foreach ($argv as $arg) {
+    if ($arg === '--html') { $htmlFlag = ''; }
+    elseif (str_starts_with($arg, '--html=')) { $htmlFlag = substr($arg, 7); }
+}
 $jsonMode = in_array('--json', $argv, true);
 $onlySection = null;
 $skipSections = [];
@@ -371,5 +378,27 @@ if ($jsonMode) {
             if (!$jsonMode) echo "  ⚠ Report write failed: {$finalPath}\n\n";
         }
     }
+
+
+// ═══════════════════════════════════════════════════════════════
+// v2.6.0: --html self-contained report (uses $allResults aggregate)
+// ═══════════════════════════════════════════════════════════════
+if ($htmlFlag !== null) {
+    $flat = [];
+    foreach ($allResults as $cn => $checks) {
+        foreach ($checks as $c) {
+            $c['name'] = (string)$cn;
+            $flat[] = $c;
+        }
+    }
+    $htmlOut = $htmlFlag !== '' ? $htmlFlag : $config->getToolDir() . '/.bona/report-' . date('Ymd-His') . '.html';
+    try {
+        \SatuRumah\Forensic\Report\HtmlReport::render($flat, $target, $htmlOut, '2.2.5');
+        fwrite(STDOUT, "  📄 HTML report: {$htmlOut}\n");
+    } catch (\Throwable $e) {
+        fwrite(STDERR, "  ⚠ HTML report failed: " . $e->getMessage() . "\n");
+    }
+}
+
 
 exit($totalFails > 0 ? 1 : 0);

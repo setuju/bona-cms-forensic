@@ -66,6 +66,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `AdvancedSecurityChecker` provides runtime CSRF surface checks
   in the meantime.
 
+## [v2.2.0] - 2026-10-28
+
+### Added
+- **TtfbChecker** — real TTFB measurement (median of 5× cURL against ephemeral localhost server)
+  - Auto-detects entry point (`public/index.php`, `index.php`, `router-dev.php`, `router.php`)
+  - Baseline stored in `.bona/ttfb-baseline.json` (in tool dir — never touches target)
+  - Thresholds: regression > 20% → FAIL, > 10% → WARN, ≤ baseline → PASS (+ update if improved)
+  - First run establishes baseline (PASS)
+  - Per-run log in `.bona/logs/log-ttfb-{timestamp}.txt` (samples, median, baseline)
+  - Server cleanup via `pkill -f 'php -S 127.0.0.1:{port}'` in `finally` — no orphaned processes
+  - Graceful SKIP: no entry point / no curl / server failed / <3 valid samples
+
 ## [v2.1.0] - 2026-10-26
 
 ### Added

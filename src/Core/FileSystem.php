@@ -25,6 +25,21 @@ declare(strict_types=1);
 namespace SatuRumah\Forensic\Core;
 
 class FileSystem {
+
+    /** @var array<int, string> */
+    private static array $globalIgnorePrefixes = [];
+
+    /** @param array<int, string> $prefixes */
+    public static function setIgnorePrefixes(array $prefixes): void {
+        self::$globalIgnorePrefixes = $prefixes;
+    }
+
+    public static function isIgnored(string $relPath): bool {
+        foreach (self::$globalIgnorePrefixes as $prefix) {
+            if ($prefix !== '' && str_starts_with($relPath, $prefix)) return true;
+        }
+        return false;
+    }
     public static function scanDir(string $dir, array $extensions, array $excludeDirs = []): array {
         $files = [];
         $iterator = new \RecursiveIteratorIterator(
@@ -33,9 +48,13 @@ class FileSystem {
                 fn($current) => !$current->isDir() || !in_array($current->getFilename(), $excludeDirs, true)
             )
         );
+        $dirLen = strlen(rtrim($dir, '/')) + 1;
         foreach ($iterator as $file) {
             if ($file->isFile() && in_array(strtolower($file->getExtension()), $extensions, true)) {
-                $files[] = $file->getPathname();
+                $full = $file->getPathname();
+                $rel = substr($full, $dirLen);
+                if (self::isIgnored($rel)) continue;
+                $files[] = $full;
             }
         }
         return $files;

@@ -48,6 +48,12 @@ class SecurityChecker extends AbstractChecker {
             $isInternalAuditFile = (basename($file) === 'DatabaseChecker.php');
             if ($isInternalAuditFile) continue;
             
+            // v2.2.5: match() whitelist detection
+            $matchVars = [];
+            if (preg_match_all('/\$([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*match\s*\(/', $content, $mm)) {
+                foreach ($mm[1] as $mv) $matchVars[$mv] = true;
+            }
+
             foreach (explode("\n", $content) as $lineNum => $line) {
                 $trimmed = ltrim($line);
                 if (str_starts_with($trimmed, '//') || str_starts_with($trimmed, '*')) continue;
@@ -68,8 +74,10 @@ class SecurityChecker extends AbstractChecker {
                 }
                 
                 $isIntrospection = preg_match('/\b(SHOW\s+(TABLES|COLUMNS|INDEX|KEYS|DATABASES)|PRAGMA\s+\w+|DESCRIBE\s+\w+|EXPLAIN\s+)/i', $line);
-                if (!$isIntrospection && preg_match('/->query\s*\(.*?["\'].*?\$[a-zA-Z_]/i', $line) && !preg_match('/prepare|bindParam|bindValue/i', $line)) {
-                    $unprepared[] = sprintf('%s:%d | %s', $rel, $lineNum + 1, trim(substr($line, 0, 100)));
+                if (!$isIntrospection && preg_match('/->query\s*\(.*?["\'].*?\$([a-zA-Z_][a-zA-Z0-9_]*)/i', $line, $qm) && !preg_match('/prepare|bindParam|bindValue/i', $line)) {
+                    if (!isset($matchVars[$qm[1]])) {
+                        $unprepared[] = sprintf('%s:%d | %s', $rel, $lineNum + 1, trim(substr($line, 0, 100)));
+                    }
                 }
             }
         }

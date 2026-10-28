@@ -26,6 +26,24 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.2.5] - 2026-10-28
+
+### Added
+- **FileSystem::setIgnorePrefixes / isIgnored** — global path-prefix allowlist used by `scanDir()`
+- **`--ignore-path=PREFIX`** CLI flag — e.g. `--ignore-path=scripts` to skip CVA-relative scripts
+
+### Changed
+- **SecurityChecker** — skip `$var = match(...) { 'lit' => '...' }` whitelists when reporting unprepared queries (fixes false positive on `admin/quotes.php:110`)
+- **LogChecker** — group errors by `(type, source:line, message)` signature; report top-5 signatures + unique count instead of raw total (actionable > noisy)
+
+### Fixed
+- **False positive**: `admin/quotes.php:110` no longer flagged as "unprepared statement" — `$filterSql` is a `match()` selector with hardcoded literals
+- **Log noise**: 1002 raw errors → grouped by signature (unique actionable set)
+
+### Notes
+- Broken-links: `--ignore-path=scripts` opt-in reduces 17 FAIL → 0 (scripts are CWD-relative by design)
+- Zero behavior change for callers not using `--ignore-path`
+
 ## [v2.5.0] - 2026-10-26
 
 ### Added

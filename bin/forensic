@@ -58,9 +58,18 @@ $target = getcwd();
 $showFindings = in_array('--show-findings', $argv, true);
 $jsonMode = in_array('--json', $argv, true);
 $onlySection = null;
+$ignorePaths = [];
 foreach ($argv as $arg) {
     if (str_starts_with($arg, '--root=')) $target = substr($arg, 7);
     if (str_starts_with($arg, '--section=')) $onlySection = substr($arg, 10);
+    if (str_starts_with($arg, '--ignore-path=')) {
+        $p = rtrim(substr($arg, 14), '/') . '/';
+        if ($p !== '/') $ignorePaths[] = $p;
+    }
+}
+
+if (!empty($ignorePaths)) {
+    \SatuRumah\Forensic\Core\FileSystem::setIgnorePrefixes($ignorePaths);
 }
 
 $config = new Config($target, $showFindings);
@@ -72,6 +81,7 @@ if (!$jsonMode) {
     echo "  Target : {$target}\n";
     if ($showFindings) echo "  Mode   : \033[1;33mFULL FINDINGS\033[0m\n";
     if ($onlySection !== null) echo "  Filter : \033[1;33m{$onlySection}\033[0m\n";
+    if (!empty($ignorePaths)) echo "  Ignore : \033[1;33m" . implode(', ', $ignorePaths) . "\033[0m\n";
     echo "\n";
 }
 

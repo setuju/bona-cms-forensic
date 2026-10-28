@@ -36,6 +36,9 @@ integrity: ## Verify read-only guarantee
 test: ## Run PHPUnit tests
 	composer test || true
 
+
+test-report: ## Run smoke test for --report flag
+	bash tests/smoke-report.sh
 lint: ## Lint all PHP files
 	@find src bin -name "*.php" -o -name "forensic" -type f | xargs -I{} php -l {} | grep -v "No syntax errors" || echo "All files OK"
 

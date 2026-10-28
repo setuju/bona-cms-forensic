@@ -257,10 +257,16 @@ if ($jsonMode) {
             if (count($grouped[$sev]) > 10) echo "      \033[2m... and " . (count($grouped[$sev]) - 10) . " more\033[0m\n";
         }
         if (!empty($grouped['PASS'])) {
-            $passNames = array_map(static fn(array $i): string => $i['checker'], $grouped['PASS']);
-            $shown = implode(', ', array_slice($passNames, 0, 8));
-            $suffix = count($passNames) > 8 ? ', ...' : '';
-            echo "  \033[0;32m✓\033[0m PASS (" . count($grouped['PASS']) . "): \033[2m{$shown}{$suffix}\033[0m\n";
+            $rawNames = array_map(static fn(array $i): string => $i['checker'], $grouped['PASS']);
+            $uniqueNames = array_values(array_unique($rawNames));
+            $totalResults = count($rawNames);
+            $uniqueCount = count($uniqueNames);
+            $headerLabel = $totalResults === $uniqueCount
+                ? "PASS ({$totalResults})"
+                : "PASS ({$totalResults} across {$uniqueCount} checkers)";
+            $shown = implode(', ', array_slice($uniqueNames, 0, 8));
+            $suffix = $uniqueCount > 8 ? ', ...' : '';
+            echo "  \033[0;32m✓\033[0m {$headerLabel}: \033[2m{$shown}{$suffix}\033[0m\n";
         }
         echo "\033[1;35m══════════════════════════════════════════════════════════════════════════\033[0m\n\n";
     }

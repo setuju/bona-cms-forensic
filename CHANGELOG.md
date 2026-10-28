@@ -45,6 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SemgrepChecker** — append `--timeout=45 --jobs=4 [--max-target-bytes=1000000]` when supported by installed semgrep version (probed at patch time; zero behavior change if none apply)
 - **bin/forensic** — `--skip=SECTION` flag (comma-separated, substring match on getName); complement to `--section=`, useful in prod where slow/network-bound sections aren't critical
 
+### Reporting (v2.2.5-D.1)
+- **PASS list dedup** — grouped summary now shows unique checker names; header label clarifies when N results span M checkers (was showing duplicate names)
+- **`tests/smoke-report.sh`** — regression guard for `--report` flag: verifies file creation, header/exec-summary/findings sections, read-only disclaimer, no duplicate PASS bullets
+- **`Makefile: test-report`** target — `make test-report` runs the smoke test
+
 ### Reporting
 - **Grouped-by-severity summary** — console output adds "📊 GROUPED BY SEVERITY" after FINAL SUMMARY: FAIL/WARN/SKIP items grouped (up to 10 each, msg truncated), PASS names inline
 - **`--report[=PATH]`** — markdown report generator

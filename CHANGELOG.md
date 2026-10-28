@@ -26,6 +26,25 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.4.0] - 2026-10-28
+
+### Added
+- **ComplexityChecker** (`src/Checkers/ComplexityChecker.php`)
+  - Wraps `phploc` for average cyclomatic complexity per method
+  - Thresholds: WARN > 20, FAIL > 40
+  - Detection: target/vendor/bin → tool/vendor/bin → PATH → SKIP
+- **DuplicationChecker** (`src/Checkers/DuplicationChecker.php`)
+  - Wraps `phpcpd --min-lines=6 --min-tokens=70 --fuzzy`
+  - Thresholds: WARN > 5%, FAIL > 10% duplication
+  - Detects "No clones found" as PASS
+
+### Notes
+- Both follow `CoverageChecker` graceful-SKIP pattern (activate when tool installed)
+- phploc/phpcpd are OPTIONAL dev deps — NOT added to composer.json
+- Activation:
+  - `composer require --dev phploc/phploc` → ComplexityChecker active
+  - `composer require --dev sebastian/phpcpd` → DuplicationChecker active
+
 ## [v2.5.0] - 2026-10-28
 
 ### Added

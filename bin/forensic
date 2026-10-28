@@ -47,6 +47,8 @@ use SatuRumah\Forensic\Checkers\A11yChecker;
 use SatuRumah\Forensic\Checkers\FrameworkChecker;
 use SatuRumah\Forensic\Checkers\DbGrowthChecker;
 use SatuRumah\Forensic\Checkers\CoverageChecker;
+use SatuRumah\Forensic\Checkers\ComplexityChecker;
+use SatuRumah\Forensic\Checkers\DuplicationChecker;
 use SatuRumah\Forensic\Checkers\IntegrityChecker;
 use SatuRumah\Forensic\Checkers\Php2ShellChecker;
 use SatuRumah\Forensic\Checkers\SemgrepChecker;
@@ -176,6 +178,8 @@ $checkers = [
     new FrameworkChecker($config),
     new DbGrowthChecker($config),
     new CoverageChecker($config),
+    new ComplexityChecker($config),
+    new DuplicationChecker($config),
 ];
 
 // v2.2.5-A: --skip=SECTION filter (substring match on getName)

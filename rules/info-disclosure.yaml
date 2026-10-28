@@ -1,0 +1,42 @@
+rules:
+  - id: bona-info-disclosure-stacktrace
+    languages: [php]
+    severity: WARNING
+    message: |
+      Stacktrace printed to output — verify not in production.
+      Matches echo/print $X->getTraceAsString(...) via pattern-regex.
+    metadata:
+      cwe: "CWE-209"
+      owasp: "A05:2021"
+      category: security
+    patterns:
+      - pattern-regex: "(echo|print)\\s+\\$[a-zA-Z_][a-zA-Z0-9_]*->getTraceAsString\\s*\\("
+
+  - id: bona-info-disclosure-var-dump-user
+    languages: [php]
+    severity: WARNING
+    message: |
+      var_dump/print_r of user input — debug code left in production.
+    metadata:
+      cwe: "CWE-489"
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: var_dump($_GET[$_])
+          - pattern: var_dump($_POST[$_])
+          - pattern: var_dump($_REQUEST[$_])
+          - pattern: print_r($_GET[$_])
+          - pattern: print_r($_POST[$_])
+          - pattern: print_r($_REQUEST[$_])
+
+  - id: bona-info-disclosure-phpinfo
+    languages: [php]
+    severity: ERROR
+    message: |
+      phpinfo() in source — exposes PHP config + env vars (secrets).
+    metadata:
+      cwe: "CWE-489"
+      owasp: "A05:2021"
+      category: security
+    patterns:
+      - pattern: phpinfo(...)

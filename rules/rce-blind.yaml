@@ -1,0 +1,34 @@
+rules:
+  - id: bona-rce-blind-proc-open-user-input
+    languages: [php]
+    severity: ERROR
+    message: |
+      Blind RCE — proc_open/popen/pcntl_exec with user-controlled command.
+    metadata:
+      cwe: "CWE-78"
+      owasp: "A03:2021"
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: proc_open($_GET[$_], ...)
+          - pattern: proc_open($_POST[$_], ...)
+          - pattern: proc_open($_REQUEST[$_], ...)
+          - pattern: popen($_GET[$_], ...)
+          - pattern: popen($_POST[$_], ...)
+          - pattern: popen($_REQUEST[$_], ...)
+          - pattern: pcntl_exec($_GET[$_], ...)
+          - pattern: pcntl_exec($_POST[$_], ...)
+
+  - id: bona-rce-blind-fnmatch
+    languages: [php]
+    severity: WARNING
+    message: |
+      fnmatch() with user input — wildcard bypass vector.
+    metadata:
+      cwe: "CWE-155"
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: fnmatch($_GET[$_], $_)
+          - pattern: fnmatch($_POST[$_], $_)
+          - pattern: fnmatch($_REQUEST[$_], $_)

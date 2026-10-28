@@ -1,0 +1,16 @@
+rules:
+  - id: bona-xxe-blind-entity-expansion
+    languages: [php]
+    severity: WARNING
+    message: |
+      Potential blind XXE — entity loader explicitly enabled or set.
+      Modern libxml (>=2.9) disables by default; re-enabling is exploitable.
+    metadata:
+      cwe: "CWE-611"
+      owasp: "A05:2021"
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: libxml_disable_entity_loader(false)
+          - pattern: libxml_disable_entity_loader(0)
+          - pattern: libxml_set_external_entity_loader(...)

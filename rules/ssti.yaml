@@ -1,0 +1,38 @@
+rules:
+  - id: bona-ssti-twig
+    languages: [php]
+    severity: ERROR
+    message: |
+      Server-Side Template Injection (SSTI) — user input flows into Twig
+      render/createTemplate. Attackers inject {{7*7}} or register callbacks
+      to execute arbitrary PHP code.
+    metadata:
+      cwe: "CWE-1336"
+      owasp: "A03:2021"
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: $TWIG->render($_GET[$_])
+          - pattern: $TWIG->render($_POST[$_])
+          - pattern: $TWIG->render($_REQUEST[$_])
+          - pattern: $TWIG->createTemplate($_GET[$_])
+          - pattern: $TWIG->createTemplate($_POST[$_])
+          - pattern: $TWIG->createTemplate($_REQUEST[$_])
+
+  - id: bona-ssti-smarty
+    languages: [php]
+    severity: ERROR
+    message: |
+      Server-Side Template Injection (SSTI) — user input passed to Smarty.
+    metadata:
+      cwe: "CWE-1336"
+      owasp: "A03:2021"
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: $SMARTY->display($_GET[$_])
+          - pattern: $SMARTY->display($_POST[$_])
+          - pattern: $SMARTY->display($_REQUEST[$_])
+          - pattern: $SMARTY->fetch($_GET[$_])
+          - pattern: $SMARTY->fetch($_POST[$_])
+          - pattern: $SMARTY->fetch($_REQUEST[$_])

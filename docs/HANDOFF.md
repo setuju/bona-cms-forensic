@@ -34,7 +34,7 @@
 | Self-audit | 0 FAIL, 2 WARN (session.upload_progress + test gap — both legit) |
 | PHPStan L6 | 0 errors |
 | Checkers | 29 concrete (22 primary + 7 utility: Integrity, Snapshot, Ttfb, A11y, Framework, DbGrowth, Coverage) |
-| Semgrep rules | 9 + CSRF check in SecurityChecker (v2.5.0) |
+| Semgrep rules | 13 (9 existing + 4 v2.5.0: ssti, xxe-blind, rce-blind, info-disclosure) |
 | TtfbChecker | Real baseline-backed TTFB tracking |
 | A11yChecker | Real WCAG 2.1 AA (root + deep crawl v2.2.0.2) |
 | CI | Bona Forensic Self-Audit + PHPStan, matrix PHP 8.2/8.3/8.4 |

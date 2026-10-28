@@ -26,6 +26,21 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.5.0] - 2026-10-28
+
+### Added
+- **4 new Semgrep YAML rules** — 9 → 13 total
+  - `rules/ssti.yaml` — Twig/Smarty SSTI via user input (CWE-1336)
+  - `rules/xxe-blind.yaml` — entity loader re-enabled (CWE-611)
+  - `rules/rce-blind.yaml` — proc_open/popen/pcntl_exec user input (CWE-78)
+  - `rules/info-disclosure.yaml` — var_dump, phpinfo, stacktrace echo (CWE-209/489)
+
+### Notes
+- `echo $X->method()` pattern fails Semgrep PHP AST → `pattern-regex` for stacktrace
+- Individual validation gate (all 4 pass). Combined `--config rules/` skipped
+  because legacy `rce.yaml` self-matches `shell_exec()` in own pattern definition.
+  Functional gate: `bona-forensic --section=Semgrep` (loads all 13 rules, runs clean).
+
 ## [v2.3.3] - 2026-10-28
 
 ### Fixed

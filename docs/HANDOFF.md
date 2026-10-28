@@ -31,7 +31,7 @@
 
 | Item | Status |
 |---|---|
-| Self-audit | 0 FAIL, 2 WARN (session.upload_progress + test gap — both legit) |
+| Self-audit | 0 FAIL, 1 WARN (PHP2Shell session.upload_progress only — user php.ini) |
 | PHPStan L6 | 0 errors |
 | Checkers | 31 concrete (22 primary + 9 utility: Integrity, Snapshot, Ttfb, A11y, Framework, DbGrowth, Coverage, Complexity, Duplication) |
 | Semgrep rules | 13 (9 existing + 4 v2.5.0: ssti, xxe-blind, rce-blind, info-disclosure) |
@@ -58,7 +58,7 @@
 | Priority | Task | Prereq |
 |---|---|---|
 | ~~P1~~ ✅ | v2.3.0 — DbGrowth + CoverageChecker | **DONE** — pcov 1.0.12 via `apt install php8.4-pcov` |
-| P2 | v2.4.0 — ComplexityChecker, DuplicationChecker | composer: phpmetrics/phpcpd |
+| ~~P2~~ ✅ | v2.4.0 — ComplexityChecker, DuplicationChecker | **DONE** — phploc 7.0.2 + phpcpd 6.0.3 installed |
 | P3 | v2.6.0 — Grafana dashboard, HTML report | none |
 | P4 | v2.7.0 — Framework-specific (WordPress, Laravel, Symfony) | none |
 
@@ -203,3 +203,29 @@ External handoff (user provides):
 ---
 
 *End of handoff. Next session: read this file, run recon, do not assume.*
+
+## 📋 Session Update — 2026-10-28 Evening
+
+**Commits since last handoff:** v2.3.1 → v2.4.4 (8 commits)
+
+| Version | What |
+|---|---|
+| v2.3.1 | Test infrastructure (phpunit.xml + 18 tests, 100% FileSystem coverage) |
+| v2.3.2 | ConfigChecker tests/ exclude fix (regression from v2.3.1) |
+| v2.3.3 | PhpUnitChecker JUnit XML — PHPUnit 10+ compatibility |
+| v2.4.0 | ComplexityChecker + DuplicationChecker (graceful SKIP) |
+| v2.4.1 | DuplicationChecker excludes fix |
+| v2.4.2 | DuplicationChecker LOC parse — direct % from phpcpd |
+| v2.4.3 | TtfbChecker absolute noise floor (30ms) |
+| v2.4.4 | A11yChecker CHROME_BIN passthrough + raw output logging |
+
+**Tools installed this session:**
+- phploc 7.0.2 (`composer global require phploc/phploc`)
+- phpcpd 6.0.3 (`composer global require sebastian/phpcpd`)
+- phpmetrics 2.11.0 (`composer global require phpmetrics/phpmetrics`)
+- pa11y-ci 4.1.1 + pa11y 9.1.1 (`npm install -g pa11y-ci pa11y`)
+- pcov 1.0.12 (`sudo apt install php8.4-pcov`)
+- google-chrome 156 (already present, `findChrome()` detects)
+
+**Latest HEAD:** v2.4.4 (`5be7f81`)
+

@@ -21,7 +21,7 @@
 
 # 🧪 Semgrep Custom Rules
 
-Bona Forensic ships **9 Semgrep rules** covering CWE Top 25 patterns. Rules are auto-discovered by `SemgrepChecker` — the checker runs `semgrep --config=rules/ .` against the target. **No PHP code changes needed** when adding or removing rules.
+Bona Forensic ships **13 Semgrep rules** covering CWE Top 25 patterns. Rules are auto-discovered by `SemgrepChecker` — the checker runs `semgrep --config=rules/ .` against the target. **No PHP code changes needed** when adding or removing rules.
 
 ## 📋 Rule Catalog
 
@@ -37,7 +37,7 @@ Bona Forensic ships **9 Semgrep rules** covering CWE Top 25 patterns. Rules are 
 | `lfi.yaml` | CWE-98 | ERROR | `include($_GET)`, `require_once($_POST)` |
 | `open-redirect.yaml` | CWE-601 | ERROR | `header("Location: ".$_GET)`, `wp_redirect($_GET)` |
 
-**Total: 9 rules**, 13 distinct `id:` entries, covering OWASP A01 / A03 / A05 / A08 / A10.
+**Total: 13 rules**, 13 distinct `id:` entries, covering OWASP A01 / A03 / A05 / A08 / A10.
 
 ## 🎯 Design — Zero False Positive Policy
 
@@ -142,3 +142,39 @@ Add a row to the table above, and a `- **XxxRule**` line in `CHANGELOG.md` under
 - **Method 2 (form-block)**: each POST form body must reference `csrf` or `_token` → WARN if missing
 - Both WARN-only (heuristic, non-blocking)
 - **Verified: 0 false positives** on Bona-CMS-Dev-X (known csrf-clean)
+
+## 🆕 New Rules — v2.5.0 (2026-10-28)
+
+Total: **13 rules** (9 base + 4 new).
+
+### Base Rules (v2.0 – v2.4)
+
+1. `sqli.yaml` — SQL injection (unprepared queries, concat with $_GET/$_POST)
+2. `xss.yaml` — Cross-site scripting (echo $_GET, raw HTML output)
+3. `rce.yaml` — Remote code execution (shell_exec, system, exec, backticks)
+4. `lfi.yaml` — Local/remote file inclusion
+5. `xxe.yaml` — XML external entity
+6. `deserialize.yaml` — Insecure deserialization (unserialize user input)
+7. `ssrf.yaml` — Server-side request forgery
+8. `open-redirect.yaml` — Open redirect via Location header
+9. `php2shell.yaml` — CVE-2026-109618/109619 detection
+
+### New Rules (v2.5.0)
+
+10. `ssti.yaml` — Twig/Smarty SSTI (CWE-1336). User input → render/createTemplate.
+11. `xxe-blind.yaml` — Blind XXE via entity loader re-enable (CWE-611).
+12. `rce-blind.yaml` — proc_open/popen/pcntl_exec with user input (CWE-78).
+13. `info-disclosure.yaml` — stacktrace, `var_dump($_)`, phpinfo (CWE-209/489).
+
+### Semgrep Pattern Limitations (L20 lesson)
+
+- `pattern: echo $X->method()` → PHP tree-sitter rejects statement form. Use
+  `pattern-regex: 'echo\s+\$X->method\s*\('` instead (see info-disclosure.yaml).
+- `pattern-not-inside: catch ($E) { ... }` → PHP `catch` requires type. Use
+  `catch (\Throwable $E) { ... }` — better: drop pattern-not-inside for
+  catch blocks, accept WARN, user reviews.
+- `--validate --config rules/` self-matches when a rule's pattern string
+  contains its own match target (e.g. `rce.yaml` with `shell_exec($x)` literal
+  matches itself). Validate individually: `semgrep --validate --config rules/ssti.yaml`.
+- Functional gate: `./bin/forensic --section=Semgrep` loads all 13 rules.
+

@@ -77,7 +77,7 @@ Most PHP audit tools either (a) **write to your project** (composer install, cac
 ## ✨ Highlights
 
 - **26 checkers** across 5 categories (static, dependency, frontend, runtime, integrity)
-- **9 Semgrep rules** covering CWE-89 (SQLi), CWE-79 (XSS), CWE-94 (RCE), CVE-2026-109618/109619 (php2shell), CWE-611 (XXE), CWE-918 (SSRF), CWE-502 (deserialize), CWE-98 (LFI), CWE-601 (open redirect)
+- **13 Semgrep rules** covering CWE-89 (SQLi), CWE-79 (XSS), CWE-94 (RCE), CVE-2026-109618/109619 (php2shell), CWE-611 (XXE), CWE-918 (SSRF), CWE-502 (deserialize), CWE-98 (LFI), CWE-601 (open redirect)
 - **OWASP Top 10 + CWE Top 25** alignment in `SecurityChecker` and `AdvancedSecurityChecker`
 - **13-point SEO analysis** + `og:*`, Twitter Card, JSON-LD, canonical, hreflang, `noindex`
 - **CLS prevention** — image/iframe width/height, font-display, aspect-ratio
@@ -422,3 +422,36 @@ Internal use at [saturumah.net](https://saturumah.net). Not for redistribution w
 [Report a bug](.github/ISSUE_TEMPLATE/bug_report.md) · [Request a feature](.github/ISSUE_TEMPLATE/feature_request.md) · [Security policy](.github/SECURITY.md)
 
 </div>
+
+## What's New — v2.4.4 (2026-10-28)
+
+### Features
+
+- **31 concrete checkers** (was 22): +DbGrowth, +Coverage, +Framework, +Ttfb, +A11y (deep crawl), +Complexity, +Duplication
+- **13 Semgrep rules** (was 9): +ssti, +xxe-blind, +rce-blind, +info-disclosure
+- **HTML report** — `--html[=PATH]` self-contained, dark/light auto
+- **Framework detection** — WordPress, Laravel, Symfony, CI4, Yii, Cake, Drupal, Slim
+- **Coverage** — pcov/xdebug-aware, activates when `phpunit.xml` present
+- **TTFB tracking** — baseline-backed with 30ms noise floor
+- **Complexity + Duplication** — graceful SKIP until phploc/phpcpd installed
+
+### Flags
+
+- `--html[=PATH]` — write self-contained HTML report
+- `--version` — print version + PHP version
+- `--help` — usage text
+- `--section=NAME` — run one section
+- `--ignore-path=PREFIX` — skip path prefix (repeatable)
+- `--report[=PATH]` — write markdown report
+- `--ci` — exit 1 on FAIL
+- `--json` — machine-readable output
+
+### Fixed (retroactive for all target audits)
+
+- **StatsChecker** vendor exclude — 1947→31 files, -98.3% LOC inflation
+- **ConfigChecker** tests/ exclude — no false "Missing CMS feature" WARNs
+- **PhpUnitChecker** JUnit XML — PHPUnit 10+ compatibility
+- **DuplicationChecker** LOC parse — direct % from phpcpd summary
+- **TtfbChecker** noise floor — 30ms absolute threshold
+- **A11yChecker** CHROME_BIN passthrough + raw output logging
+

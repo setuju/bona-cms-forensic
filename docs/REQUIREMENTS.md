@@ -160,3 +160,40 @@ for t in composer semgrep git gh pkill; do which \$t || echo "\$t MISSING"; done
 - ✅ **Slim Framework**
 
 For unknown frameworks, run `--show-findings` first to verify no false positives.
+
+## 🔧 New Additions — v2.4.4 (2026-10-28)
+
+### Performance Extensions
+
+| Extension | Used by | Install |
+|---|---|---|
+| `pcov` | CoverageChecker | `sudo apt install php8.4-pcov` (Sury PPA prebuilt) |
+| `xdebug` (alt) | CoverageChecker | `sudo apt install php8.4-xdebug` |
+| `opcache` | Runtime perf (recommended) | Default in production php.ini |
+
+### CLI Tools — Code Quality
+
+| Tool | Used by | Install |
+|---|---|---|
+| `phploc` 7.0.2 | ComplexityChecker | `composer global require phploc/phploc` |
+| `phpcpd` 6.0.3 | DuplicationChecker | `composer global require sebastian/phpcpd` |
+| `phpmetrics` 2.11.0 (optional) | Complexity report | `composer global require phpmetrics/phpmetrics` |
+
+### CLI Tools — Accessibility
+
+| Tool | Used by | Install |
+|---|---|---|
+| `pa11y-ci` 4.1.1 | A11yChecker | `npm install -g pa11y-ci` |
+| `pa11y` 9.1.1 (debug) | A11yChecker debug | `npm install -g pa11y` |
+| `google-chrome` 156+ | A11yChecker | `apt install google-chrome-stable` |
+| Node.js 20.x | pa11y-ci runtime | nvm / NodeSource |
+
+### Activation notes
+
+- **ComplexityChecker / DuplicationChecker**: SKIP until phploc/phpcpd installed.
+  After install: `./bin/forensic --root=. --section=Complexity`
+- **CoverageChecker**: SKIP until pcov/xdebug installed AND `phpunit.xml` in target.
+- **A11yChecker**: requires pa11y-ci + Chrome + Node. `findChrome()` auto-detects
+  system binary via `google-chrome-stable`, `google-chrome`, `chromium`, `chromium-browser`.
+  Sets `CHROME_BIN` env internally for the pa11y-ci invocation.
+

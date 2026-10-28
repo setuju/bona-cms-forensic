@@ -302,3 +302,38 @@ No unit test harness yet (v2.3+ planned `CoverageChecker`). Current approach:
 - [`rules/README.md`](../rules/README.md) — Semgrep rule catalog & add-guide
 - [`docs/REQUIREMENTS.md`](REQUIREMENTS.md) — platform / extension requirements
 - [`LESSONS-LEARNED.md`](https://github.com/setuju/bona-cms-forensic) — 19 lessons (subprocess isolation, visible output, false-positive avoidance)
+
+## 📐 Update — v2.4.4
+
+### Checker Count
+
+**31 concrete checkers** = 22 primary + 9 utility
+(Integrity, Snapshot, Ttfb, A11y, Framework, DbGrowth, Coverage, Complexity, Duplication).
+
+### New Utility Checkers (graceful SKIP pattern)
+
+- **DbGrowthChecker** — READ-ONLY PDO row-count tracking vs `.bona/db-snapshot.json`.
+  WARN if table grows >50% since last snapshot.
+- **CoverageChecker** — PHPUnit line coverage via pcov/xdebug. FAIL <60%, WARN <80%.
+- **ComplexityChecker** — phploc average cyclomatic complexity. WARN >20, FAIL >40.
+- **DuplicationChecker** — phpcpd `--fuzzy --min-lines=6 --min-tokens=70`. WARN >5%, FAIL >10%.
+- **FrameworkChecker** — marker-based detection (WordPress, Laravel, Symfony, CI4,
+  Yii2, CakePHP, Drupal, Slim). Output: INFO only (never gates).
+- **TtfbChecker** — 5× cURL median TTFB vs baseline. WARN >1.10× AND >30ms;
+  FAIL >1.20× AND >30ms (30ms = noise floor for local PHP server).
+- **A11yChecker** — pa11y-ci multi-page WCAG 2.1 AA. `findChrome()` detects
+  system Chrome, passes `CHROME_BIN` env. Raw output logged to
+  `.bona/logs/log-a11y-raw-*.txt` on JSON parse failure.
+
+### Output Formats
+
+- **Text** (default) — grouped by severity (FAIL/WARN/PASS/SKIP)
+- **`--json`** — machine-readable, per-checker results
+- **`--html[=PATH]`** — self-contained HTML, dark/light auto, opens offline
+- **`--report[=PATH]`** — markdown report
+
+### Semgrep rules
+
+13 active rules (9 base + 4 v2.5.0 additions: ssti, xxe-blind, rce-blind, info-disclosure).
+See `rules/README.md` for details and pattern limitations (L20).
+

@@ -26,6 +26,37 @@ All notable changes to Bona Forensic will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v2.4.4] - 2026-10-28
+
+### Fixed
+- **A11yChecker defensive hardening** — reduce rc=2 "not JSON-parseable" on
+  targets with complex/SPA pages that can crash Chromium mid-crawl. All changes
+  additive; existing PASS/SKIP behavior preserved.
+
+### Changed
+1. **CHROME_BIN passthrough** — `findChrome()` detects system Chrome
+   (`google-chrome-stable`, `google-chrome`, `chromium`, `chromium-browser`,
+   `/opt/google/chrome/chrome`). Env var passed to pa11y-ci invocation.
+   Rationale: puppeteer-bundled Chromium (v148) may mismatch system Chrome (v156);
+   explicit CHROME_BIN forces system binary, avoiding download/lock issues.
+2. **Raw output logging** — on JSON parse fail, write
+   `.bona/logs/log-a11y-raw-*.txt` with `rc`, `first_line`, and first 500 chars.
+   Improves future debugging of target-specific Chromium failures.
+3. **Better SKIP message** — include first non-empty line of raw output to
+   surface actual failure cause (e.g. "Connection closed", "ERR_", "timeout").
+
+### Verified
+- Fixture with WCAG contrast violation → FAIL detected correctly (unchanged)
+- Fixture minimal (no errors) → PASS (unchanged)
+- Self-audit (no entry point) → SKIP (unchanged)
+- PHPStan L6 clean
+
+### Evidence (why target rc=2 is not a tool bug)
+- `/tmp` fixture with WCAG errors: A11yChecker FAIL with findings (works)
+- `/tmp` minimal fixture: A11yChecker PASS (works)
+- Target rc=2: raw output logged to `.bona/logs/log-a11y-raw-*.txt`
+  for maintainer investigation. Target has separate maintainer — out of scope.
+
 ## [v2.4.3] - 2026-10-28
 
 ### Fixed

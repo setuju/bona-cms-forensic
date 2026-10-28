@@ -73,8 +73,11 @@ class A11yChecker extends AbstractChecker {
                 $this->addResult('SKIP', 'Failed to write pa11y-ci config with urls[].');
                 return $this->results;
             }
+            $chrome = $this->findChrome();
+            $chromeEnv = $chrome !== null ? 'CHROME_BIN=' . escapeshellarg($chrome) . ' ' : '';
 
-            $cmd = 'timeout ' . self::HTTP_TIMEOUT_SEC
+
+            $cmd = $chromeEnv . 'timeout ' . self::HTTP_TIMEOUT_SEC
                  . ' ' . escapeshellarg($pa11y)
                  . ' --config=' . escapeshellarg($configPath)
                  . ' --reporter=json '
@@ -100,7 +103,17 @@ class A11yChecker extends AbstractChecker {
             }
             $json = @json_decode($stdout, true);
             if (!is_array($json)) {
-                $this->addResult('SKIP', 'pa11y-ci output not JSON-parseable (Chromium issue?). rc=' . $rc);
+                // Log raw output for debugging (first 500 chars + first line)
+                $rawSnippet = substr($stdout, 0, 500);
+                $rawLines = explode("\n", trim($stdout));
+                $firstLine = $rawLines[0] ?? '';
+                $logDir = $this->config->getToolDir() . '/.bona/logs';
+                if (!is_dir($logDir)) @mkdir($logDir, 0755, true);
+                @file_put_contents(
+                    $logDir . '/log-a11y-raw-' . date('Ymd-His') . '.txt',
+                    "rc={$rc}\nfirst_line: {$firstLine}\n\n--- raw (first 500) ---\n{$rawSnippet}\n"
+                );
+                $this->addResult('SKIP', 'pa11y-ci output not JSON-parseable (Chromium issue?). rc=' . $rc . ' | first_line: ' . substr($firstLine, 0, 100));
                 return $this->results;
             }
 
@@ -305,4 +318,16 @@ class A11yChecker extends AbstractChecker {
         foreach ($findings as $f) $lines[] = '  - ' . $f;
         \SatuRumah\Forensic\Core\FileSystem::writeLog($logDir, 'a11y', $lines);
     }
+    /** Detect system Chrome (avoids puppeteer chromium download issues). */
+    private function findChrome(): ?string {
+        foreach (['google-chrome-stable', 'google-chrome', 'chromium', 'chromium-browser'] as $bin) {
+            $p = trim((string)shell_exec('which ' . escapeshellarg($bin) . ' 2>/dev/null'));
+            if ($p !== '') return $p;
+        }
+        foreach (['/opt/google/chrome/chrome', '/usr/bin/google-chrome'] as $p) {
+            if (is_executable($p)) return $p;
+        }
+        return null;
+    }
+
 }

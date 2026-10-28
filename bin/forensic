@@ -55,6 +55,47 @@ use SatuRumah\Forensic\Checkers\ReliabilityChecker;
 use SatuRumah\Forensic\Checkers\SmokeTestChecker;
 
 $target = getcwd();
+if (in_array('--help', $argv, true) || in_array('-h', $argv, true)) {
+    fwrite(STDOUT, <<<USAGE
+Bona Forensic — Enterprise READ-ONLY PHP Audit
+
+Usage:
+  ./bin/forensic [options]
+
+Options:
+  --root=PATH          Target directory (default: parent of repo)
+  --ci                 Exit 1 on FAIL (CI mode)
+  --json               Machine-readable JSON output
+  --show-findings      Print detailed findings (list items)
+  --section=NAME       Run only one section (stats, security, seo, ...)
+  --ignore-path=PREFIX Skip a path prefix (repeatable)
+  --quick              Skip slow checks (semgrep, tests)
+  --report[=PATH]      Write markdown report
+  --help, -h           Show this message
+  --version            Show version
+
+Exit codes:
+  0 = PASS (0 FAIL)
+  1 = FAIL (>=1 FAIL item; only with --ci)
+  2 = error (missing files, gate failure)
+
+USAGE
+    );
+    exit(0);
+}
+
+if (in_array('--version', $argv, true)) {
+    $composerPath = __DIR__ . '/../composer.json';
+    $version = '2.2.5';  // fallback: composer.json for apps has no 'version' key (update on release)
+    if (is_readable($composerPath)) {
+        $c = json_decode((string)file_get_contents($composerPath), true);
+        if (is_array($c) && isset($c['version'])) $version = (string)$c['version'];
+    }
+    fwrite(STDOUT, "Bona Forensic {$version}\n");
+    fwrite(STDOUT, "PHP " . PHP_VERSION . "\n");
+    exit(0);
+}
+
 $showFindings = in_array('--show-findings', $argv, true);
 $jsonMode = in_array('--json', $argv, true);
 $onlySection = null;

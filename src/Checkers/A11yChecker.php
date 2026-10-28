@@ -5,7 +5,7 @@
  * │  ──────────────────────────────────────────────────────────────────  │
  * │  File      : src/Checkers/A11yChecker.php
  * │  Purpose   : WCAG 2.1 AA accessibility audit via pa11y-ci            │
- * │              (v2.2.0 skeleton — returns SKIP)                        │
+ * │              (v2.2.0.2 — real WCAG 2.1 AA, deep crawl v2)             │
  * │  Author    : Jack — Jack[at]SatuRumah[dot]Net                        │
  * │  GitHub    : https://github.com/setuju                               │
  * │  Website   : https://saturumah.net                                   │

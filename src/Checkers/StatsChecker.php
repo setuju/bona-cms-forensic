@@ -30,7 +30,11 @@ class StatsChecker extends AbstractChecker {
     public function getName(): string { return 'Code Statistics'; }
 
     public function run(): array {
-        $files = FileSystem::scanDir($this->config->getTargetDir(), ['php']);
+        $files = FileSystem::scanDir(
+            $this->config->getTargetDir(),
+            ['php'],
+            ['vendor', 'node_modules', '.git', 'cache', 'tests', '.bona', 'build', 'dist', 'coverage']
+        );
         if (empty($files)) {
             $this->addResult('FAIL', 'No PHP files found');
             return $this->results;
